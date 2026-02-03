@@ -1,7 +1,7 @@
 from src.mdp import MDP
 from src.engine import Engine
-from src.debug.tester import Tester
-from src.debug.debugger import MDPDebugger
+from src.tester import Tester
+from src.debugger import MDPDebugger
 from src.fluent import Fluent, FluentSchema
 
 def load_model(domain_path):
