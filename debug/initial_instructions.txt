@@ -1,0 +1,35 @@
+=== MDP-ProbLog Instructions Table ===
+Timestamp: 2026-02-02 16:04:57
+Total Nodes: 69
+============================================================
+
+ID     | Instruction / Content
+------------------------------------------------------------
+0      | _builtin_forall(V_0,V_1) :- \+(call(V_0), \+call(V_1))
+1      | state_fluent(case_one(V_0)) :- v_one(V_0)
+2      | body_13(12,multi) :- true
+3      | 0.25::choice(12,0,v_one(a))
+4      | v_one(a) :- body_13(12,multi), choice(12,0,v_one(a))
+5      | 0.25::choice(12,1,v_one(b))
+6      | v_one(b) :- body_13(12,multi), choice(12,1,v_one(b))
+7      | 0.25::choice(12,2,v_one(c))
+8      | v_one(c) :- body_13(12,multi), choice(12,2,v_one(c))
+9      | 0.25::choice(12,3,v_one(d))
+10     | v_one(d) :- body_13(12,multi), choice(12,3,v_one(d))
+11     | state_fluent(case_two(V_0),ads) :- v_two(V_0)
+12     | v_two(a)
+13     | v_two(b)
+14     | v_two(c)
+15     | v_two(d)
+16     | state_fluent(case_three(V_0),ads) :- v_three(V_0)
+17     | body_47(46,multi) :- true
+18     | 0.25::choice(46,0,v_three(a))
+19     | v_three(a) :- body_47(46,multi), choice(46,0,v_three(a))
+20     | 0.25::choice(46,1,v_three(b))
+21     | v_three(b) :- body_47(46,multi), choice(46,1,v_three(b))
+22     | 0.25::choice(46,2,v_three(c))
+23     | v_three(c) :- body_47(46,multi), choice(46,2,v_three(c))
+24     | 0.25::choice(46,3,v_three(d))
+25     | v_three(d) :- body_47(46,multi), choice(46,3,v_three(d))
+26     | mutual_exclusive([choice(12,0,v_one(a)), choice(12,1,v_one(b)), choice(12,2,v_one(c)), choice(12,3,v_one(d))])
+27     | mutual_exclusive([choice(46,0,v_three(a)), choice(46,1,v_three(b)), choice(46,2,v_three(c)), choice(46,3,v_three(d))])
