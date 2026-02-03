@@ -1,13 +1,10 @@
 
-from engine_t import Engine as eng
-from fluent_t import Fluent
+from src.engine import Engine as eng
+from src.fluent import Fluent, FluentSchema
 from collections import defaultdict #
 
-##
 from problog.logic import Term
 
-from fluent_t import FluentSchema
- 
 from problog.program import PrologString
 from problog.formula import LogicFormula
 

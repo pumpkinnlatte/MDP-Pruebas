@@ -1,5 +1,5 @@
-from mdp_t import MDP
-from fluent_t import FluentSchema
+from source.mdp import MDP
+from fluent import FluentSchema
 import os
 
 from debug.tester import Tester

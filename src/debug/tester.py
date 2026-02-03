@@ -1,7 +1,7 @@
 import os
 import json
 from datetime import datetime
-from mdp_t import MDP  #
+from src.mdp import MDP  #
 
 class Tester:
     """

@@ -1,8 +1,8 @@
-from engine_t import Engine
-from mdp_t import MDP
-from fluent_t import Fluent
-
-from debug.debugger import MDPDebugger 
+from src.mdp import MDP
+from src.engine import Engine
+from src.debug.tester import Tester
+from src.debug.debugger import MDPDebugger
+from src.fluent import Fluent, FluentSchema
 
 def load_model(domain_path):
     with open(domain_path, 'r') as f:
