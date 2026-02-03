@@ -1,17 +1,30 @@
 === MDP-ProbLog Instructions Table ===
-Timestamp: 2026-02-03 17:12:07
-Total Nodes: 30
+Timestamp: 2026-02-03 17:36:04
+Total Nodes: 51
 ============================================================
 
 ID     | Instruction / Content
 ------------------------------------------------------------
 0      | _builtin_forall(V_0,V_1) :- \+(call(V_0), \+call(V_1))
-1      | state_fluent(mv_case_10(V_0,V_1),ads) :- mv_values(V_0), other(V_1)
-2      | mv_values(a)
-3      | mv_values(b)
-4      | body_18(17,multi) :- true
-5      | 0.6::choice(17,0,other(yes))
-6      | other(yes) :- body_18(17,multi), choice(17,0,other(yes))
-7      | 0.8::choice(17,1,other(no))
-8      | other(no) :- body_18(17,multi), choice(17,1,other(no))
-9      | mutual_exclusive([choice(17,0,other(yes)), choice(17,1,other(no))])
+1      | state_fluent(case_one(a))
+2      | state_fluent(case_two(V_0,V_1)) :- v_two(V_0)
+3      | v_two(a)
+4      | v_two(b)
+5      | v_two(c)
+6      | v_two(d)
+7      | state_fluent(case_three(V_0),isf) :- v_three(V_0)
+8      | v_three(a)
+9      | v_three(b)
+10     | v_three(c)
+11     | v_three(d)
+12     | state_fluent(case_four(V_0),ads) :- v_four(V_0)
+13     | body_29(28,multi) :- true
+14     | 0.25::choice(28,0,v_four(a))
+15     | v_four(a) :- body_29(28,multi), choice(28,0,v_four(a))
+16     | 0.25::choice(28,1,v_four(b))
+17     | v_four(b) :- body_29(28,multi), choice(28,1,v_four(b))
+18     | 0.25::choice(28,2,v_four(c))
+19     | v_four(c) :- body_29(28,multi), choice(28,2,v_four(c))
+20     | 0.25::choice(28,3,v_four(d))
+21     | v_four(d) :- body_29(28,multi), choice(28,3,v_four(d))
+22     | mutual_exclusive([choice(28,0,v_four(a)), choice(28,1,v_four(b)), choice(28,2,v_four(c)), choice(28,3,v_four(d))])

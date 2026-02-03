@@ -12,9 +12,9 @@ def load_model(domain_path):
 
 if __name__ == "__main__":
 
-    #prog_dir = 'pruebas/bool_state.pl' 
+    prog_dir = 'pruebas/bool_state.pl' 
     #prog_dir = 'pruebas/mv_state.pl' 
-    prog_dir = 'pruebas/test_env.pl' 
+    #prog_dir = 'pruebas/test_env.pl' 
 
     print("--- Cargando Modelo ---")
     model_str = load_model(prog_dir)
