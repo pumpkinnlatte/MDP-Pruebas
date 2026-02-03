@@ -7,7 +7,7 @@ class MDPDebugger(object):
     funcionamiento interno de MDP-ProbLog.
     """
     
-    DEBUG_DIR = 'debug'
+    DEBUG_DIR = 'src/debug'
 
     @classmethod
     def _ensure_debug_dir(cls):
