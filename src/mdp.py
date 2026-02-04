@@ -105,9 +105,6 @@ class MDP(object):
           - color(rojo) -> "color"
           - at(truck1, paris) -> "at(truck1)"
         """
-        # term.functor es el nombre (ej. "at")
-        # term.args son los argumentos (ej. (truck1, paris))
-        
         if len(term.args) == 0:
              return term.functor
         
@@ -151,8 +148,7 @@ class MDP(object):
         inferences = {}
 
         # PASO 1: Localizar el nodo 'define' para state_fluent/1
-        # db.find() utiliza el hash del functor/aridad para salto directo O(1).
-        # Retorna el índice del nodo que agrupa todas las definiciones.
+        # db.find() retorna el índice del nodo que agrupa todas las definiciones.
         sf_define_idx = db.find(Term('state_fluent', None))
         
         if sf_define_idx is None:
@@ -187,9 +183,6 @@ class MDP(object):
                 if type(body_node).__name__ == 'call':
                     origin_def_idx = body_node.defnode
                 
-                # (Opcional) Manejo de negación o estructuras complejas si fuera necesario
-                # elif type(body_node).__name__ == 'conj': ...
-
                 if origin_def_idx is None:
                     inferences[target_sig] = 'isf'
                     continue
@@ -209,10 +202,9 @@ class MDP(object):
                         
                         if type(child).__name__ == 'clause':
                             # Bajamos por la estructura de la cláusula de la AD
-                            # clause (27) -> child (26) -> children (25, 24) -> call (24) -> defnode (23) -> choice
                             try:
-                                # Esto navega la estructura específica que ProbLog genera para las ADs
                                 ad_clause_body = db.get_node(child.child) 
+                                
                                 if type(ad_clause_body).__name__ == 'conj':
                                     # El segundo hijo del conj suele ser la llamada al choice
                                     potential_choice_call = db.get_node(ad_clause_body.children[1])

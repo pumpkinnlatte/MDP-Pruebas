@@ -1,6 +1,5 @@
 from src.mdp import MDP
 from src.engine import Engine
-from src.tester import Tester
 from src.debugger import MDPDebugger
 from src.fluent import Fluent, FluentSchema
 
@@ -12,7 +11,7 @@ def load_model(domain_path):
 
 if __name__ == "__main__":
 
-    prog_dir = 'pruebas/bool_state.pl' 
+    prog_dir = 'tests/ads_tests/ads_case_02.pl' 
     #prog_dir = 'pruebas/mv_state.pl' 
     #prog_dir = 'pruebas/test_env.pl' 
 
@@ -28,7 +27,7 @@ if __name__ == "__main__":
 
     #MDPDebugger.inspect_by_index(clause_db)
 
-    # Obtenemos el equema de los fluentes declarados
+    #1. Obtenemos el equema de los fluentes declarados
     state_fluent_schema = mdp.state_fluents()
     print(state_fluent_schema.__str__())
 

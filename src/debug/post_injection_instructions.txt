@@ -1,57 +1,21 @@
 === MDP-ProbLog Instructions Table ===
-Timestamp: 2026-02-03 17:36:04
-Total Nodes: 115
+Timestamp: 2026-02-04 14:29:06
+Total Nodes: 39
 ============================================================
 
 ID     | Instruction / Content
 ------------------------------------------------------------
 0      | _builtin_forall(V_0,V_1) :- \+(call(V_0), \+call(V_1))
-1      | state_fluent(case_one(a))
-2      | state_fluent(case_two(V_0,V_1)) :- v_two(V_0)
-3      | v_two(a)
-4      | v_two(b)
-5      | v_two(c)
-6      | v_two(d)
-7      | state_fluent(case_three(V_0),isf) :- v_three(V_0)
-8      | v_three(a)
-9      | v_three(b)
-10     | v_three(c)
-11     | v_three(d)
-12     | state_fluent(case_four(V_0),ads) :- v_four(V_0)
-13     | body_29(28,multi) :- true
-14     | 0.25::choice(28,0,v_four(a))
-15     | v_four(a) :- body_29(28,multi), choice(28,0,v_four(a))
-16     | 0.25::choice(28,1,v_four(b))
-17     | v_four(b) :- body_29(28,multi), choice(28,1,v_four(b))
-18     | 0.25::choice(28,2,v_four(c))
-19     | v_four(c) :- body_29(28,multi), choice(28,2,v_four(c))
-20     | 0.25::choice(28,3,v_four(d))
-21     | v_four(d) :- body_29(28,multi), choice(28,3,v_four(d))
-22     | 0.5::case_one(a,0)
-23     | 0.5::case_three(a,0)
-24     | 0.5::case_three(b,0)
-25     | 0.5::case_three(c,0)
-26     | 0.5::case_three(d,0)
-27     | body_59(58,case_two(a,V_0,0),V_0) :- true
-28     | 0.5::choice(58,0,case_two(a,A1,0),A1)
-29     | case_two(a,V_0,0) :- body_59(58,case_two(a,V_0,0),V_0), choice(58,0,case_two(a,V_0,0),V_0)
-30     | body_68(67,case_two(b,V_0,0),V_0) :- true
-31     | 0.5::choice(67,0,case_two(b,A1,0),A1)
-32     | case_two(b,V_0,0) :- body_68(67,case_two(b,V_0,0),V_0), choice(67,0,case_two(b,V_0,0),V_0)
-33     | body_76(75,case_two(c,V_0,0),V_0) :- true
-34     | 0.5::choice(75,0,case_two(c,A1,0),A1)
-35     | case_two(c,V_0,0) :- body_76(75,case_two(c,V_0,0),V_0), choice(75,0,case_two(c,V_0,0),V_0)
-36     | body_84(83,case_two(d,V_0,0),V_0) :- true
-37     | 0.5::choice(83,0,case_two(d,A1,0),A1)
-38     | case_two(d,V_0,0) :- body_84(83,case_two(d,V_0,0),V_0), choice(83,0,case_two(d,V_0,0),V_0)
-39     | body_92(91,multi) :- true
-40     | 0.25::choice(91,0,case_four(a,0))
-41     | case_four(a,0) :- body_92(91,multi), choice(91,0,case_four(a,0))
-42     | 0.25::choice(91,1,case_four(b,0))
-43     | case_four(b,0) :- body_92(91,multi), choice(91,1,case_four(b,0))
-44     | 0.25::choice(91,2,case_four(c,0))
-45     | case_four(c,0) :- body_92(91,multi), choice(91,2,case_four(c,0))
-46     | 0.25::choice(91,3,case_four(d,0))
-47     | case_four(d,0) :- body_92(91,multi), choice(91,3,case_four(d,0))
-48     | mutual_exclusive([choice(28,0,v_four(a)), choice(28,1,v_four(b)), choice(28,2,v_four(c)), choice(28,3,v_four(d))])
-49     | mutual_exclusive([choice(91,0,case_four(a,0)), choice(91,1,case_four(b,0)), choice(91,2,case_four(c,0)), choice(91,3,case_four(d,0))])
+1      | state_fluent(mv_case_02(V_0)) :- mv_values(V_0)
+2      | body_13(12,multi) :- true
+3      | 0.5::choice(12,0,mv_values(a))
+4      | mv_values(a) :- body_13(12,multi), choice(12,0,mv_values(a))
+5      | 0.7::choice(12,1,mv_values(b))
+6      | mv_values(b) :- body_13(12,multi), choice(12,1,mv_values(b))
+7      | body_26(25,multi) :- true
+8      | 0.5::choice(25,0,mv_case_02(a,0))
+9      | mv_case_02(a,0) :- body_26(25,multi), choice(25,0,mv_case_02(a,0))
+10     | 0.5::choice(25,1,mv_case_02(b,0))
+11     | mv_case_02(b,0) :- body_26(25,multi), choice(25,1,mv_case_02(b,0))
+12     | mutual_exclusive([choice(12,0,mv_values(a)), choice(12,1,mv_values(b))])
+13     | mutual_exclusive([choice(25,0,mv_case_02(a,0)), choice(25,1,mv_case_02(b,0))])

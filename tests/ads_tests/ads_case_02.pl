@@ -1,4 +1,4 @@
-% Resultado esperado: ADs o Error por suma de probabilidades > 1
+% Resultado esperado: ADs
 % Group Key: mv_case_02
 % Método: Inferencia
 % Base: 2
