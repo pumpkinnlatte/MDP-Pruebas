@@ -33,7 +33,6 @@ class Fluent(object):
         return term.with_args(*args)
 
 
-# CLASE NUEVA
 class FluentSchema(object):
     """
     Define la estructura topológica de las variables de estado.
@@ -109,7 +108,7 @@ class FluentSchema(object):
         return size
 
     def flatten(self):
-        """Retorna todos los fluentes en una sola lista plana (útil para el Engine)."""
+        """Retorna todos los fluentes en una sola lista plana."""
         if self._cached_flat_list is None:
             flat_groups = [item for group in self.groups for item in group]
             self._cached_flat_list = self._isf_fluents + flat_groups
@@ -137,11 +136,10 @@ class FluentSchema(object):
         if n_bin == 0:
             lines.append("      (None)")
         else:
-            # Mostramos en columnas o lista simple
             for term in self._isf_fluents:
                 lines.append(f"      [ ] {term}")
 
-        lines.append("") # Espacio separador
+        lines.append("") 
 
         # 3. Grupos Mutuamente Excluyentes (ADS)
         n_groups = len(self._grouped_fluents)
@@ -156,7 +154,104 @@ class FluentSchema(object):
                 lines.append(f"      > Group Key: '{group_key}' (Base: {len(options)})")
                 for term in options:
                     lines.append(f"          (o) {term}")
-                lines.append("") # Espacio entre grupos
+                lines.append("") 
 
         lines.append("="*60)
         return "\n".join(lines)
+
+
+class StateSpace(object):
+    """
+    %Esta clase sirve para iterar sobre las representaciones vectoriales de los estados en un MDP
+    factorizado definido por `state_fluents`.
+    Cada estado se implementa mediante un OrderedDict de (problog.logic.Term, 0/1).
+
+    Iterator class for looping over vector representations of
+    states in a factored MDP defined by `state_fluents`. Each state
+    is implemented by an OrderedDict of (problog.logic.Term, 0/1).
+    -----
+    :param state_fluents: predicates defining a state in a given timestep
+    :type state_fluents: list of problog.logic.Term
+    """
+    
+    #CAMBIO_STATEFLUENT
+    def __init__(self, state_fluents):
+        self.__state_fluents = state_fluents
+        self.__state_space_size = 2**len(self.__state_fluents) #Número de estados = 2^(número de fluentes de estado)
+
+        #DEBUG: Log del espacio de estados
+        MDPDebugger.log_state_space(self.__state_space_size, self.__state_fluents)
+
+    def __len__(self):
+        """ Return the number of states of the state space. """
+        return self.__state_space_size
+
+    def __iter__(self):
+        """ Return an iterator over the state space. """
+        self.__state_number = 0
+        self.__state = OrderedDict([ (fluent, 1) for fluent in self.__state_fluents ])
+        return self
+
+
+    #CAMBIO_STATEFLUENT
+    #genera la representación del siguiente estado en la secuencia
+    def __next__(self):
+        """ Return representation of next state in the sequence. """
+        if self.__state_number == self.__state_space_size:
+            raise StopIteration
+
+        for fluent, value in self.__state.items():
+            if value == 1:
+                self.__state[fluent] = 0
+            else:
+                self.__state[fluent] = 1
+                break
+
+        self.__state_number += 1
+
+        return self.__state
+
+
+    #CAMBIO_STATEFLUENT
+    def __getitem__(self, index):
+        """
+        Return the state representation with given `index`.
+
+        :param index: state index in state space
+        :type index: int
+        """
+        state = []
+        for fluent in self.__state_fluents:
+            value = index % 2       #
+            index //= 2             #
+            state.append((fluent, value))
+        return tuple(state)
+
+    @classmethod
+    def state(cls, valuation):
+        """
+        Return the state representation of a `valuation` of fluents.
+
+        :param valuation: mapping from fluent to boolean value
+        :type valuation: list of pairs (Fluent, bool)
+        :rtype: OrderedDict
+        """
+        return OrderedDict(valuation)
+
+
+    ##CAMBIO_STATEFLUENT
+    @classmethod
+    def index(cls, state):
+        """
+        Return the `state` index in the state space.
+
+        :param state: state representation
+        :type state: OrderedDict
+        :rtype: int
+        """
+        i = 0
+        index = 0
+        for _, value in state.items():
+            index += value * 2 ** i         #
+            i += 1
+        return index

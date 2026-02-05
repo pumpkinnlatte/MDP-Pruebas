@@ -1,5 +1,5 @@
 === MDP-ProbLog Instructions Table ===
-Timestamp: 2026-02-04 14:29:06
+Timestamp: 2026-02-04 17:36:25
 Total Nodes: 25
 ============================================================
 

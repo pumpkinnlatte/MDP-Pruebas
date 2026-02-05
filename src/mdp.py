@@ -23,21 +23,46 @@ class MDP(object):
         self._engine = eng(model)  #Se envía el modelo en str al engine
         self.__transition_cache = {}
         self.__reward_cache = {}
-        self.__prepare()
+        #self.__prepare()
 
-    #02. Prepare
     def __prepare(self):
         """ Prepare the mdp-problog knowledge database to accept queries. """
 
-        #actions = self.actions()
+        # obtain the state fluent schema 
+        sf_schema = self.state_fluents()
+        print(sf_schema.__str__())
 
-        # prepara lo que consideramos las consultas relevantes
-        #self.__utilities = self._engine.assignments('utility')
-        #next_state_fluents = self.next_state_fluents()
-        #queries = list(set(self.__utilities) | set(next_state_fluents) | set(actions))
+        # add dummy current independent state fluents as probabilistic facts
+        for term in sf_schema.isf:
+            fact_node = self._engine.add_fact(Fluent.create_fluent(term, 0), 0.5)
 
-        # aterriza las consultas relevantes
-        #self._engine.relevant_ground(queries)
+        # add dummy current annotated disjunction state fluents groups
+        for group in sf_schema.groups:
+            ad_fluents = []
+            for option in group:
+                ad_fluents.append(Fluent.create_fluent(option, 0))
+            ad_group = self._engine.add_annotated_disjunction(ad_fluents, [1.0 / len(ad_fluents)] * len(ad_fluents))
+
+        # add dummy actions annotated disjunction
+        actions = self.actions()
+        self._engine.add_annotated_disjunction(actions, [1.0 / len(actions)] * len(actions))
+
+        # ground the mdp-problog program
+        self.__utilities = self._engine.assignments('utility')
+
+        next_state_fluents = self.next_state_fluents()
+
+        print("Next state fluents:", next_state_fluents)
+
+        # prepare relevant queries
+        queries = list(set(self.__utilities) | set(next_state_fluents) | set(actions))
+
+        # ground relevant queries
+        self._engine.relevant_ground(queries)
+
+        # compile query database
+        self.__next_state_queries = self._engine.compile(next_state_fluents)
+        self.__reward_queries = self._engine.compile(self.__utilities)
 
     def state_fluents(self):
         """
@@ -95,7 +120,7 @@ class MDP(object):
         return schema
 
 
-    # Método auxiliar para obtener la clave de grupo
+    # aux method to get group key
     def _get_group_key(self, term):
         """
         Genera la clave de agrupación para un término ADS.
@@ -109,12 +134,9 @@ class MDP(object):
              return term.functor
         
         if len(term.args) == 1:
-            # Caso simple: state_fluent(color(rojo)) -> Agrupa por "color"
+           
             return term.functor
         
-        # Caso Relacional: state_fluent(at(truck1, paris))
-        # Agrupamos por "at(truck1)" para que no choque con "at(truck2, ...)"
-        # Tomamos todos los argumentos menos el último (que se asume es el valor)
         variable_args = term.args[:-1]
         return f"{term.functor}({','.join(map(str, variable_args))})"
 
@@ -128,7 +150,7 @@ class MDP(object):
 
         :rtype: list of next state fluent objects sorted by string representation
         """
-        return [Fluent.create_fluent(f, 1) for f in self.state_fluents()]
+        return [Fluent.create_fluent(f, 1) for f in self.state_fluents().flatten()]
 
     def actions(self):
         """
@@ -204,7 +226,7 @@ class MDP(object):
                             # Bajamos por la estructura de la cláusula de la AD
                             try:
                                 ad_clause_body = db.get_node(child.child) 
-                                
+
                                 if type(ad_clause_body).__name__ == 'conj':
                                     # El segundo hijo del conj suele ser la llamada al choice
                                     potential_choice_call = db.get_node(ad_clause_body.children[1])

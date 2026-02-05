@@ -1,6 +1,6 @@
 === MDP-ProbLog Instructions Table ===
-Timestamp: 2026-02-04 14:29:06
-Total Nodes: 39
+Timestamp: 2026-02-04 21:41:29
+Total Nodes: 25
 ============================================================
 
 ID     | Instruction / Content
@@ -12,10 +12,4 @@ ID     | Instruction / Content
 4      | mv_values(a) :- body_13(12,multi), choice(12,0,mv_values(a))
 5      | 0.7::choice(12,1,mv_values(b))
 6      | mv_values(b) :- body_13(12,multi), choice(12,1,mv_values(b))
-7      | body_26(25,multi) :- true
-8      | 0.5::choice(25,0,mv_case_02(a,0))
-9      | mv_case_02(a,0) :- body_26(25,multi), choice(25,0,mv_case_02(a,0))
-10     | 0.5::choice(25,1,mv_case_02(b,0))
-11     | mv_case_02(b,0) :- body_26(25,multi), choice(25,1,mv_case_02(b,0))
-12     | mutual_exclusive([choice(12,0,mv_values(a)), choice(12,1,mv_values(b))])
-13     | mutual_exclusive([choice(25,0,mv_case_02(a,0)), choice(25,1,mv_case_02(b,0))])
+7      | mutual_exclusive([choice(12,0,mv_values(a)), choice(12,1,mv_values(b))])
