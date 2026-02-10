@@ -1,6 +1,6 @@
 % Resultado esperado: ADs
 % Group Key: mv_case_05
-% Método: ?
+% Método: Inferencia
 % Base: 4 
 
 state_fluent(mv_case_05(X, Y)) :- mv_values(X), other(Y).

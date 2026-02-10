@@ -1,82 +1,104 @@
+# This file is part of MDP-ProbLog.
+
+# MDP-ProbLog is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+
+# MDP-ProbLog is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+
+# You should have received a copy of the GNU General Public License
+# along with MDP-ProbLog.  If not, see <http://www.gnu.org/licenses/>.
+
 import os
 from datetime import datetime
 
+
 class MDPDebugger(object):
     """
-    Clase utilitaria para inspección, logging y depuración del
-    funcionamiento interno de MDP-ProbLog.
+    Utility class for inspection, logging, and debugging of MDP-ProbLog
+    internal operations.
     """
-    
+
     DEBUG_DIR = 'src/debug'
 
     @classmethod
-    def _ensure_debug_dir(cls):
-        """Asegura que exista el directorio de debug."""
+    def ensure_debug_dir(cls):
+        """
+        Ensure that the debug directory exists.
+        """
         if not os.path.exists(cls.DEBUG_DIR):
             os.makedirs(cls.DEBUG_DIR)
-            print(f"[DEBUG] Directorio '{cls.DEBUG_DIR}' creado.")
 
     @classmethod
     def save_instructions_table(cls, db, filename="instructions_table.txt"):
         """
-        Vuelca el contenido de la ClauseDB (Tabla de instrucciones) a un archivo.
+        Save the ClauseDB instruction table to a file for inspection.
 
-        :param db: Instancia de problog.engine.ClauseDB (self._engine._db)
-        :param filename: Nombre del archivo de salida
+        :param db: ProbLog clause database
+        :type db: problog.engine.ClauseDB
+        :param filename: output filename
+        :type filename: str
         """
-        cls._ensure_debug_dir()
-        
+        cls.ensure_debug_dir()
+
         filepath = os.path.join(cls.DEBUG_DIR, filename)
-        
+
         try:
             with open(filepath, 'w', encoding='utf-8') as f:
-                # Encabezado del archivo
                 timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                f.write(f"=== MDP-ProbLog Instructions Table ===\n")
-                f.write(f"Timestamp: {timestamp}\n")
-                f.write(f"Total Nodes: {len(db)}\n")
-                f.write("="*60 + "\n\n")
-                f.write(f"{'ID':<6} | {'Instruction / Content'}\n")
+                f.write("=== MDP-ProbLog Instructions Table ===\n")
+                f.write("Timestamp: {}\n".format(timestamp))
+                f.write("Total Nodes: {}\n".format(len(db)))
+                f.write("=" * 60 + "\n\n")
+                f.write("{:<6} | {}\n".format('ID', 'Instruction / Content'))
                 f.write("-" * 60 + "\n")
 
-                # Iterar sobre los nodos de la base de datos lógica
-                # ProbLog ClauseDB es iterable y devuelve los nodos en orden
-                for idx, node in enumerate(db.iter_raw()):
-                    # str(node) devuelve la representación en Prolog del nodo
-                    node_repr = str(node)
-                    f.write(f"{idx:<6} | {node_repr}\n")
-            
-            print(f"[DEBUG] Tabla de instrucciones guardada exitosamente en: {filepath}")
-            
+                for index, node in enumerate(db.iter_raw()):
+                    node_representation = str(node)
+                    f.write("{:<6} | {}\n".format(index, node_representation))
+
         except IOError as e:
-            print(f"[ERROR] No se pudo escribir el archivo de debug: {e}")
+            print("[ERROR] Failed to write debug file: {}".format(e))
 
     @classmethod
-    def log_schema(cls, schema, filename="schema_dump.txt"):
+    def save_schema(cls, schema, filename="schema_dump.txt"):
         """
-        Guarda la representación del FluentSchema en un archivo.
+        Save the FluentSchema representation to a file.
+
+        :param schema: fluent schema
+        :type schema: FluentSchema
+        :param filename: output filename
+        :type filename: str
         """
-        cls._ensure_debug_dir()
+        cls.ensure_debug_dir()
         filepath = os.path.join(cls.DEBUG_DIR, filename)
-        
+
         try:
             with open(filepath, 'w', encoding='utf-8') as f:
                 f.write(str(schema))
-            print(f"[DEBUG] Esquema de fluentes guardado en: {filepath}")
         except IOError as e:
-            print(f"[ERROR] Fallo al guardar esquema: {e}")
+            print("[ERROR] Failed to save schema: {}".format(e))
 
     @classmethod
-    def inspect_by_index(self, db):
+    def inspect_by_index(cls, db):
+        """
+        Inspect ClauseDB nodes by iterating through all indices.
+
+        :param db: ProbLog clause database
+        :type db: problog.engine.ClauseDB
+        """
         total = len(db)
-        print(f"Longitud reportada por len(): {total}")
-        
-        print("--- INSPECCIÓN INDICE POR INDICE ---")
-        # Iteramos manualmente por rango numérico, no por iterador de objeto
+        print("Total nodes reported by len(): {}".format(total))
+
+        print("--- INDEX-BY-INDEX INSPECTION ---")
         for i in range(total):
             try:
                 node = db.get_node(i)
                 node_type = type(node).__name__
-                print(f"[{i}] Tipo: {node_type} | Contenido: {node}")
+                print("[{}] Type: {} | Content: {}".format(i, node_type, node))
             except Exception as e:
-                print(f"[{i}] ERROR DE ACCESO: {e}")
+                print("[{}] ACCESS ERROR: {}".format(i, e))

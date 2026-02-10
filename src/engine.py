@@ -5,15 +5,8 @@ from problog.logic   import Term, Constant, AnnotatedDisjunction
 from problog         import get_evaluatable
 
 class Engine(object):
-
     """
-    Clase adaptadora al motor de grounding y consulta de Problog.
-    :param program: un programa válido de MDP-ProbLog
-    :type program: str
-    """
-
-    """
-    Adapter class to Problog grounding and query engine.
+    Adapter class to ProbLog grounding and query engine.
 
     :param program: a valid MDP-ProbLog program
     :type program: str
@@ -141,3 +134,17 @@ class Engine(object):
             if not str(choice).startswith('choice'):
                 raise IndexError('Node `%d` is not a choice node.' % choice)
         return choices
+
+    # Calcula las probabilidades de las consultas dadas un conjunto de evidencias
+    def evaluate(self, queries, evidence):
+        """
+        Compute probabilities of `queries` given `evidence`.
+
+        :param queries: mapping of predicates to nodes
+        :type queries: dict of (problog.logic.Term, int)
+        :param evidence: mapping of predicate and evidence weight
+        :type evidence: dict of (problog.logic.Term, int)
+        :rtype: list of (problog.logic.Term, float)
+        """
+        evaluator = self._knowledge.get_evaluator(semiring=None, evidence=None, weights=evidence)
+        return [(query, evaluator.evaluate(queries[query])) for query in sorted(queries, key=str)]

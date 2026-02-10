@@ -1,26 +1,17 @@
+
 from collections import OrderedDict
-
 from problog.logic import Constant
-
 
 class Fluent(object):
     """
-    Un término fluente es una clase problog.logic.Term
-    con una clase problog.logic.Constant como último argumento
-    que representa su paso temporal.
-    -----
     Factory class for building fluent terms. A fluent term is a
     problog.logic.Term with a problog.logic.Constant as last argument
     representing its timestep.
     """
 
-    #01. Creación de un Fluente
-    #Se representa como un término de Problog con un argumento adicional que indica el timestep.
     @classmethod
     def create_fluent(cls, term, timestep):
-        """"
-        Devuelve un nuevo fluente hecho a partir de `term` con el `timestep` dado.
-        -----
+        """
         Return a new fluent made from `term` with given `timestep`.
 
         :param term: any problog term
@@ -35,123 +26,147 @@ class Fluent(object):
 
 class FluentSchema(object):
     """
-    Define la estructura topológica de las variables de estado.
-    Encapsula la distinción entre variables independientes (ISF)
-    y grupos mutuamente excluyentes (ADS).
+    Representation of the topological structure of state variables in a factored MDP.
+    Maintains two types of factors: Independent State Fluents (ISF) with base 2,
+    and Annotated Disjunction groups (ADS) with base N. The schema is atemporal,
+    storing terms without time arguments that are added dynamically during
+    state space instantiation.
     """
-
     def __init__(self):
-        # Lista de fluentes de estado independientes [f1, f2, ...]
-        self._isf_fluents = [] 
+        self.__factors = []
+        self.__bases = []
+        self.__flattened = []
+
+    @property
+    def factors(self):
+        """
+        Return the list of factors (groups of fluents).
         
-        # Diccionario de grupos { "nombre_grupo": [opcion_a, opcion_b] }
-        self._grouped_fluents = {} 
-        
-        # Cache para la lista plana
-        self._cached_flat_list = None
+        :rtype: list of list of problog.logic.Term
+        """
+        return self.__factors
 
     def add_isf(self, term):
-        """Agrega un Independent State Fluent (Bernoulli)."""
-        self._isf_fluents.append(term)
-        self._cached_flat_list = None 
-
-    def add_group_option(self, group_key, term):
-        """Agrega una opción a un grupo de Annotated Disjunction."""
-        if group_key not in self._grouped_fluents:
-            self._grouped_fluents[group_key] = []
-        self._grouped_fluents[group_key].append(term)
-        self._cached_flat_list = None
-
-    def sort(self):
-        """Asegura determinismo ordenando internamente."""
-        self._isf_fluents.sort(key=str)
-        for key in self._grouped_fluents:
-            self._grouped_fluents[key].sort(key=str)
-        self._cached_flat_list = None
-
-    @property
-    def isf(self):
-        return self._isf_fluents
-
-    @property
-    def groups(self):
         """
-        Retorna una lista de listas de opciones, ordenadas por la clave del grupo.
-        Ej: [[g1_opt1, g1_opt2], [g2_opt1, ...]]
-        """
-        return [self._grouped_fluents[k] for k in sorted(self._grouped_fluents.keys())]
+        Add an independent binary state fluent.
 
-    @property
-    def radix_bases(self):
+        :param term: state fluent term
+        :type term: problog.logic.Term
         """
-        Retorna la lista de bases numéricas para el iterador de estados.
-        Para un ISF, la base es 2. Para un grupo ADS, la base es len(grupo).
-        
-        Ejemplo: [2, 2, 3, 4] 
-        (2 ISFs, 1 grupo de 3 opciones, 1 grupo de 4 opciones)
+        self.__factors.append([term])
+        self.__bases.append(2)
+        self.__flattened.append(term)
+
+    def add_group(self, terms):
         """
-        # Bases para los ISF (siempre 2)
-        bases = [2] * len(self._isf_fluents)
-        
-        # Bases para los grupos ADS
-        for group in self.groups:
-            bases.append(len(group))
-            
-        return bases
+        Add a mutually exclusive group of state fluents (annotated disjunction).
+
+        :param terms: list of mutually exclusive state fluent terms
+        :type terms: list of problog.logic.Term
+        """
+        self.__factors.append(terms)
+        self.__bases.append(len(terms))
+        self.__flattened.extend(terms)
 
     @property
     def total_states(self):
-        """Calcula el tamaño del espacio de estados matemáticamente."""
-        size = 1
-        for base in self.radix_bases:
-            size *= base
-        return size
+        """
+        Return the total number of states in the state space.
 
-    def flatten(self):
-        """Retorna todos los fluentes en una sola lista plana."""
-        if self._cached_flat_list is None:
-            flat_groups = [item for group in self.groups for item in group]
-            self._cached_flat_list = self._isf_fluents + flat_groups
-        return self._cached_flat_list
+        :rtype: int
+        """
+        product = 1
+        for base in self.__bases:
+            product *= base
+        return product
+
+    @property
+    def strides(self):
+        """
+        Return the positional weights for each factor in mixed-radix notation.
+        For example, with bases [2, 3, 2], strides are [1, 2, 6].
+
+        :rtype: list of int
+        """
+        strides = []
+        current = 1
+        for base in self.__bases:
+            strides.append(current)
+            current *= base
+        return strides
+
+    def get_factors_at(self, timestep):
+        """
+        Return a copy of factors with temporal fluent terms for given `timestep`.
+
+        :param timestep: timestep numeric value
+        :type timestep: int
+        :rtype: list of list of problog.logic.Term
+        """
+        temporal_factors = []
+        for group in self.__factors:
+            temporal_group = [Fluent.create_fluent(term, timestep) for term in group]
+            temporal_factors.append(temporal_group)
+        return temporal_factors
+
+    def get_flat_list(self):
+        """
+        Return a flat list of all state fluent terms in schema order.
+
+        :rtype: list of problog.logic.Term
+        """
+        return self.__flattened
 
     def __str__(self):
         """
         Genera una representación textual legible para humanos del esquema,
-        útil para depuración y verificación de la topología del MDP.
+        adaptada a la nueva estructura de factores unificados.
         """
         lines = []
         lines.append("="*60)
-        lines.append(f" Esquema de Fluentes del MDP")
+        lines.append(f" Esquema de Estados del MDP")
         lines.append("="*60)
         
         # 1. Resumen General
-        lines.append(f"Tamaño teorico del espacio de estados: {self.total_states}")
+        lines.append(f"Tamaño teórico del espacio de estados: {self.total_states}")
         lines.append("-" * 60)
 
+        # Separamos los factores para la visualización
+        isf_list = []
+        ads_list = []
+
+        for i, factor in enumerate(self.__factors):
+            if len(factor) == 1:
+                # Si el factor tiene 1 solo término, es una variable binaria independiente
+                isf_list.append(factor[0])
+            else:
+                # Si tiene más, es un grupo ADS. Guardamos su índice para referencia.
+                ads_list.append((i, factor))
+
         # 2. Fluentes Binarios Independientes (ISF)
-        n_bin = len(self._isf_fluents)
-        lines.append(f"[ISF] Fluentes de estado Independientes (Cantidad: {n_bin})")
-        lines.append(f"      Descripcion: Cada uno itera entre {{0, 1}} independientemente.")
+        n_bin = len(isf_list)
+        lines.append(f"[ISF] Fluentes Independientes (Cantidad: {n_bin})")
+        lines.append(f"      Descripción: Cada uno itera entre {{0, 1}} independientemente.")
         
         if n_bin == 0:
             lines.append("      (None)")
         else:
-            for term in self._isf_fluents:
+            for term in isf_list:
                 lines.append(f"      [ ] {term}")
 
         lines.append("") 
 
         # 3. Grupos Mutuamente Excluyentes (ADS)
-        n_groups = len(self._grouped_fluents)
-        lines.append(f"[ADS] Grupos de Disyunciones anotadas (Cantidad: {n_groups})")
-        lines.append(f"      Descripciones: En cada grupo, solo UNA OPCION puede ser verdad en un momento determinado.")
+        n_groups = len(ads_list)
+        lines.append(f"[ADS] Grupos Mutuamente Excluyentes (Cantidad: {n_groups})")
+        lines.append(f"      Descripción: En cada grupo, solo UNA OPCIÓN es verdadera (One-Hot).")
 
         if n_groups == 0:
             lines.append("      (None)")
         else:
-            for group_key in sorted(self._grouped_fluents.keys()):
-                options = self._grouped_fluents[group_key]
-                lines.append(f"      > Group Key: '{group_key}' (Base: {len(options)})")
+            for idx, options in ads_list:
+                # Al no tener 'group_key', usamos el índice del factor como identificador
+                lines.append(f"      > Grupo #{idx} (Base: {len(options)})")
                 for term in options:
                     lines.append(f"          (o) {term}")
                 lines.append("") 
@@ -160,98 +175,140 @@ class FluentSchema(object):
         return "\n".join(lines)
 
 
-class StateSpace(object):
+class FactorSpace(object):
     """
-    %Esta clase sirve para iterar sobre las representaciones vectoriales de los estados en un MDP
-    factorizado definido por `state_fluents`.
-    Cada estado se implementa mediante un OrderedDict de (problog.logic.Term, 0/1).
+    Abstract base class implementing mixed-radix numeral system iteration
+    over factored representations. Provides unified iteration logic for both
+    StateSpace and ActionSpace.
 
-    Iterator class for looping over vector representations of
-    states in a factored MDP defined by `state_fluents`. Each state
-    is implemented by an OrderedDict of (problog.logic.Term, 0/1).
-    -----
-    :param state_fluents: predicates defining a state in a given timestep
-    :type state_fluents: list of problog.logic.Term
+    :param schema: fluent schema defining factors and bases
+    :type schema: FluentSchema
+    :param timestep: optional timestep for temporal fluent instantiation
+    :type timestep: int or None
     """
-    
-    #CAMBIO_STATEFLUENT
-    def __init__(self, state_fluents):
-        self.__state_fluents = state_fluents
-        self.__state_space_size = 2**len(self.__state_fluents) #Número de estados = 2^(número de fluentes de estado)
+    def __init__(self, schema, timestep=None):
+        self._schema = schema
+        self.__space_size = schema.total_states
+        self.__strides = schema.strides
 
-        #DEBUG: Log del espacio de estados
-        MDPDebugger.log_state_space(self.__state_space_size, self.__state_fluents)
+        if timestep is not None:
+            self.__local_factors = schema.get_factors_at(timestep)
+        else:
+            self.__local_factors = schema._FluentSchema__factors
 
     def __len__(self):
-        """ Return the number of states of the state space. """
-        return self.__state_space_size
-
-    def __iter__(self):
-        """ Return an iterator over the state space. """
-        self.__state_number = 0
-        self.__state = OrderedDict([ (fluent, 1) for fluent in self.__state_fluents ])
-        return self
-
-
-    #CAMBIO_STATEFLUENT
-    #genera la representación del siguiente estado en la secuencia
-    def __next__(self):
-        """ Return representation of next state in the sequence. """
-        if self.__state_number == self.__state_space_size:
-            raise StopIteration
-
-        for fluent, value in self.__state.items():
-            if value == 1:
-                self.__state[fluent] = 0
-            else:
-                self.__state[fluent] = 1
-                break
-
-        self.__state_number += 1
-
-        return self.__state
-
-
-    #CAMBIO_STATEFLUENT
-    def __getitem__(self, index):
         """
-        Return the state representation with given `index`.
+        Return the number of elements in the factor space.
 
-        :param index: state index in state space
-        :type index: int
-        """
-        state = []
-        for fluent in self.__state_fluents:
-            value = index % 2       #
-            index //= 2             #
-            state.append((fluent, value))
-        return tuple(state)
-
-    @classmethod
-    def state(cls, valuation):
-        """
-        Return the state representation of a `valuation` of fluents.
-
-        :param valuation: mapping from fluent to boolean value
-        :type valuation: list of pairs (Fluent, bool)
-        :rtype: OrderedDict
-        """
-        return OrderedDict(valuation)
-
-
-    ##CAMBIO_STATEFLUENT
-    @classmethod
-    def index(cls, state):
-        """
-        Return the `state` index in the state space.
-
-        :param state: state representation
-        :type state: OrderedDict
         :rtype: int
         """
-        i = 0
+        return self.__space_size
+
+    def __iter__(self):
+        """
+        Return an iterator over the factor space.
+
+        :rtype: FactorSpace
+        """
+        self.__current_index = 0
+        return self
+
+    def __next__(self):
+        """
+        Return the next valuation in the iteration sequence.
+
+        :rtype: collections.OrderedDict
+        """
+        if self.__current_index >= self.__space_size:
+            raise StopIteration
+        valuation = self.__getitem__(self.__current_index)
+        self.__current_index += 1
+        return valuation
+
+    def __getitem__(self, index):
+        """
+        Return the valuation corresponding to the given `index` using
+        mixed-radix decoding.
+
+        :param index: element index in factor space
+        :type index: int
+        :rtype: collections.OrderedDict of (problog.logic.Term, int)
+        """
+        valuation = OrderedDict()
+        temp_index = index
+
+        for base, options in zip(self._schema._FluentSchema__bases, self.__local_factors):
+            active_option_index = temp_index % base
+            temp_index //= base
+
+            if base == 2 and len(options) == 1:
+                valuation[options[0]] = active_option_index
+            else:
+                for i, term in enumerate(options):
+                    valuation[term] = 1 if i == active_option_index else 0
+
+        return valuation
+
+    def index(self, valuation):
+        """
+        Return the index corresponding to the given `valuation` using
+        mixed-radix encoding.
+
+        :param valuation: mapping of fluent terms to values
+        :type valuation: dict of (problog.logic.Term, int)
+        :rtype: int
+        """
         index = 0
-        for _, value in state.items():
-            index += value * 2 ** i         #
-            i += 1
+
+        for k, options in enumerate(self.__local_factors):
+            active_value = 0
+            if len(options) == 1:
+                active_value = valuation.get(options[0], 0)
+            else:
+                for i, term in enumerate(options):
+                    if valuation.get(term, 0) == 1:
+                        active_value = i
+                        break
+            index += active_value * self.__strides[k]
         return index
+
+    @property
+    def weights(self):
+        """
+        Return the stride weights for mixed-radix indexing.
+
+        :rtype: list of int
+        """
+        return self.__strides
+
+class StateSpace(FactorSpace):
+    """
+    Iterator class for looping over vector representations of states
+    in a factored MDP. Each state is represented as an OrderedDict
+    mapping fluent terms to their values.
+
+    :param schema: fluent schema defining state space structure
+    :type schema: FluentSchema
+    :param timestep: timestep numeric value
+    :type timestep: int
+    """
+
+    def __init__(self, schema, timestep=0):
+        super(StateSpace, self).__init__(schema, timestep=timestep)
+       
+
+class ActionSpace(FactorSpace):
+    """
+    Iterator class for looping over one-hot vector representations of
+    actions in an MDP. Actions are represented as mutually exclusive
+    choices (annotated disjunction).
+
+    :param actions: list of action terms
+    :type actions: list of problog.logic.Term
+    """
+
+    def __init__(self, actions):
+        schema = FluentSchema()
+        schema.add_group(actions)
+        super(ActionSpace, self).__init__(schema, timestep=None)
+        
