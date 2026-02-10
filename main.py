@@ -48,10 +48,12 @@ def print_transitions(mdp, states, actions):
 
 if __name__ == "__main__":
 
-    #prog_dir = 'tests/ads_tests/ads_case_01.pl'
-    #prog_dir = 'tests/ads_tests/ads_case_02.pl' 
+    prog_dir = 'tests/ads_tests/ads_case_04.pl'
+    #prog_dir = 'tests/isf_tests/isf_case_01.pl' 
+
+
     #prog_dir = 'tests/model_tests/test_model_02.pl' 
-    prog_dir = 'pruebas/vm1.pl' 
+    #prog_dir = 'pruebas/vm1.pl' 
 
     print("--- Cargando Modelo ---")
     model_str = load_model(prog_dir)
