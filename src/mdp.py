@@ -57,16 +57,16 @@ class MDP(object):
                 probabilities = [1.0 / len(current_ad_fluents)] * len(current_ad_fluents)
                 self._engine.add_annotated_disjunction(current_ad_fluents, probabilities)
 
-        #actions = self.actions()
-        #self._engine.add_annotated_disjunction(actions, [1.0 / len(actions)] * len(actions))
+        actions = self.actions()
+        self._engine.add_annotated_disjunction(actions, [1.0 / len(actions)] * len(actions))
 
-        #self.__utilities = self._engine.assignments('utility')
-        #next_state_fluents = self.next_state_fluents()
-        #queries = list(set(self.__utilities) | set(next_state_fluents) | set(actions))
-        #self._engine.relevant_ground(queries)
+        self.__utilities = self._engine.assignments('utility')
+        next_state_fluents = self.next_state_fluents()
+        queries = list(set(self.__utilities) | set(next_state_fluents) | set(actions))
+        self._engine.relevant_ground(queries)
 
-        #self.__next_state_queries = self._engine.compile(next_state_fluents)
-        #self.__reward_queries = self._engine.compile(self.__utilities)
+        self.__next_state_queries = self._engine.compile(next_state_fluents)
+        self.__reward_queries = self._engine.compile(self.__utilities)
 
     def __build_state_schema(self):
         """
