@@ -82,6 +82,7 @@ class Engine(object):
         :rtype: dict of (problog.logic.Term, int)
         """
         self._knowledge = get_evaluatable(None).create_from(self._gp)
+        
         term2node = {}
         for term in terms:
             term2node[term] = self._knowledge.get_node_by_name(term)
@@ -138,13 +139,14 @@ class Engine(object):
     # Calcula las probabilidades de las consultas dadas un conjunto de evidencias
     def evaluate(self, queries, evidence):
         """
-        Compute probabilities of `queries` given `evidence`.
+        Compute probabilities of `queries` given `a`.
 
         :param queries: mapping of predicates to nodes
         :type queries: dict of (problog.logic.Term, int)
         :param evidence: mapping of predicate and evidence weight
-        :type evidence: dict of (problog.logic.Term, int)
-        :rtype: list of (problog.logic.Term, float)
+        :type evidence: dictionary of (problog.logic.Term, {0, 1})
+        :rtype: list of (problog.logic.Term, [0.0, 1.0])
         """
         evaluator = self._knowledge.get_evaluator(semiring=None, evidence=None, weights=evidence)
-        return [(query, evaluator.evaluate(queries[query])) for query in sorted(queries, key=str)]
+        
+        return [ (query, evaluator.evaluate(queries[query])) for query in sorted(queries, key=str) ]
