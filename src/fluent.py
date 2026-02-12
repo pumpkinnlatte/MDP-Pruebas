@@ -128,7 +128,7 @@ class FluentSchema(object):
         lines.append("="*60)
         
         # 1. Resumen General
-        lines.append(f"Tamaño teórico del espacio de estados: {self.total_states}")
+        lines.append(f"Tamaño del espacio de estados: {self.total_states}")
         lines.append("-" * 60)
 
         # Separamos los factores para la visualización

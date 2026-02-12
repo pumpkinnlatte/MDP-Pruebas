@@ -1,10 +1,35 @@
 === MDP-ProbLog Instructions Table ===
-Timestamp: 2026-02-09 21:04:40
-Total Nodes: 13
+Timestamp: 2026-02-12 01:47:42
+Total Nodes: 76
 ============================================================
 
 ID     | Instruction / Content
 ------------------------------------------------------------
 0      | _builtin_forall(V_0,V_1) :- \+(call(V_0), \+call(V_1))
-1      | state_fluent(mv_case_04(V_0),ads) :- mv_values(V_0)
-2      | mv_values(a)
+1      | state_fluent(marketed(V_0)) :- person(V_0)
+2      | action(market(V_0)) :- person(V_0)
+3      | action(market(none))
+4      | utility(market(V_0),-1) :- person(V_0)
+5      | utility(buys(V_0,1),5) :- person(V_0)
+6      | marketed(V_0,1) :- market(V_0)
+7      | body_29(25,marketed(V_0,1),V_0) :- \+market(V_0), marketed(V_0,0)
+8      | 0.5::choice(25,0,marketed(A1,1),A1)
+9      | marketed(V_0,1) :- body_29(25,marketed(V_0,1),V_0), choice(25,0,marketed(V_0,1),V_0)
+10     | body_37(36,buy_from_marketing(V_0),V_0) :- person(V_0)
+11     | 0.2::choice(36,0,buy_from_marketing(A1),A1)
+12     | buy_from_marketing(V_0) :- body_37(36,buy_from_marketing(V_0),V_0), choice(36,0,buy_from_marketing(V_0),V_0)
+13     | body_46(45,buy_from_trust(V_0),V_0) :- person(V_0)
+14     | 0.3::choice(45,0,buy_from_trust(A1),A1)
+15     | buy_from_trust(V_0) :- body_46(45,buy_from_trust(V_0),V_0), choice(45,0,buy_from_trust(V_0),V_0)
+16     | buys(V_0,1) :- marketed(V_0,1), buy_from_marketing(V_0)
+17     | buys(V_0,1) :- trusts(V_0,V_1), buys(V_1,1), buy_from_trust(V_0)
+18     | person(denis)
+19     | person(thiago)
+20     | person(leliane)
+21     | person(fabio)
+22     | trusts(thiago,leliane)
+23     | trusts(denis,leliane)
+24     | trusts(denis,fabio)
+25     | trusts(fabio,leliane)
+26     | trusts(leliane,fabio)
+27     | trusts(leliane,thiago)

@@ -43,23 +43,36 @@ class MDP(object):
 
         # add dummy current state fluents
         for factor in self.state_schema.factors:
-            for term in factor:
-                fluent_term = Fluent.create_fluent(term, 0)
-                self._engine.add_fact(fluent_term, 0.5)
+
+            if len(factor) == 1:
+                for term in factor:
+                    fluent_term = Fluent.create_fluent(term, 0)
+                    self._engine.add_fact(fluent_term, 0.5)
+            else:
+                ad_states =[]
+                for term in factor:
+                    fluent_term = Fluent.create_fluent(term, 0)
+                    ad_states.append(fluent_term)
+                self._engine.add_annotated_disjunction(ad_states, [1.0 / len(ad_states)] * len(ad_states))
         
         actions = self.actions()
         self._engine.add_annotated_disjunction(actions, [1.0 / len(actions)] * len(actions))
 
         self.__utilities = self._engine.assignments('utility')
-        next_state_fluents = self.next_state_fluents()
-        queries = list(set(self.__utilities) | set(next_state_fluents) | set(actions))
-        self._engine.relevant_ground(queries)
 
-        print("\nNXT STATE FLUENTS:", next_state_fluents, "")
+        next_state_fluents = self.next_state_fluents()
+
+        # [Prueba] anadimos los current state fluents a las queries 
+        current_state_fluents = self.current_state_fluents()
+
+        queries = list(set(self.__utilities) | set(next_state_fluents) | set(actions) | set(current_state_fluents))
+
+        self._engine.relevant_ground(queries)
 
         self.__next_state_queries = self._engine.compile(next_state_fluents)
 
-        print("\n--- NXSTATE QUERIES", self.__next_state_queries,"\n")
+        print("\n",self.__next_state_queries,"\n")
+
         self.__reward_queries = self._engine.compile(self.__utilities)
 
         # DEBUG: Tabla post-inyección 
@@ -272,8 +285,10 @@ class MDP(object):
         :rtype: list of pairs (problog.logic.Term, float)
         """
         evidence = state.copy()
-        
         evidence.update(action)
+
+        #print("\nEVIDENCE FOR TRANSITION\n", self.__next_state_queries, "\n") # DEBUG
+
         return self._engine.evaluate(self.__next_state_queries, evidence)
 
 

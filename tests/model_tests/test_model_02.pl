@@ -27,10 +27,10 @@ utility(stop, -1).
 
 % Transition model
 
-0.99:traffic_light(green, 1) :- traffic_light(yellow, 0).
+0.50::traffic_light(green, 1) :- traffic_light(yellow, 0).
 0.50::traffic_light(yellow, 1) :- traffic_light(green, 0).
 0.50::traffic_light(yellow, 1) :- traffic_light(red, 0).
-0.99::traffic_light(red, 1) :- traffic_light(yellow, 0).
+0.50::traffic_light(red, 1) :- traffic_light(yellow, 0).
 
 % Conditional probabilities p(x i = 1 | obs(Pa(x i )), move)
 0.5::free_N(1) :- free_N(0), not(traffic_light(red, 0)), move.

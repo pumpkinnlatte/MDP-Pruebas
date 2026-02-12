@@ -50,6 +50,8 @@ class Engine(object):
         :type queries: list of problog.logic.Term
         """
         self._gp = self._engine.ground_all(self._db, queries=queries)
+        #print("\n--- PROGRAMA ATERRIZADO ---")
+        #print(self._gp) #DEBUG Imprime el programa aterrizado
 
     #Anade un hecho probabilístico a la base de conocimiento
     def add_fact(self, term, probability=None):
@@ -82,7 +84,6 @@ class Engine(object):
         :rtype: dict of (problog.logic.Term, int)
         """
         self._knowledge = get_evaluatable(None).create_from(self._gp)
-        
         term2node = {}
         for term in terms:
             term2node[term] = self._knowledge.get_node_by_name(term)
@@ -147,6 +148,9 @@ class Engine(object):
         :type evidence: dictionary of (problog.logic.Term, {0, 1})
         :rtype: list of (problog.logic.Term, [0.0, 1.0])
         """
+
+        #print("WMC STRUCTURE\n",self._knowledge) #DEBUG Imprime la base de conocimiento compilada
+
         evaluator = self._knowledge.get_evaluator(semiring=None, evidence=None, weights=evidence)
-        
+
         return [ (query, evaluator.evaluate(queries[query])) for query in sorted(queries, key=str) ]

@@ -1,11 +1,51 @@
 === MDP-ProbLog Instructions Table ===
-Timestamp: 2026-02-09 21:04:40
-Total Nodes: 15
+Timestamp: 2026-02-12 01:47:42
+Total Nodes: 108
 ============================================================
 
 ID     | Instruction / Content
 ------------------------------------------------------------
 0      | _builtin_forall(V_0,V_1) :- \+(call(V_0), \+call(V_1))
-1      | state_fluent(mv_case_04(V_0),ads) :- mv_values(V_0)
-2      | mv_values(a)
-3      | 0.5::mv_case_04(a,0)
+1      | state_fluent(marketed(V_0)) :- person(V_0)
+2      | action(market(V_0)) :- person(V_0)
+3      | action(market(none))
+4      | utility(market(V_0),-1) :- person(V_0)
+5      | utility(buys(V_0,1),5) :- person(V_0)
+6      | marketed(V_0,1) :- market(V_0)
+7      | body_29(25,marketed(V_0,1),V_0) :- \+market(V_0), marketed(V_0,0)
+8      | 0.5::choice(25,0,marketed(A1,1),A1)
+9      | marketed(V_0,1) :- body_29(25,marketed(V_0,1),V_0), choice(25,0,marketed(V_0,1),V_0)
+10     | body_37(36,buy_from_marketing(V_0),V_0) :- person(V_0)
+11     | 0.2::choice(36,0,buy_from_marketing(A1),A1)
+12     | buy_from_marketing(V_0) :- body_37(36,buy_from_marketing(V_0),V_0), choice(36,0,buy_from_marketing(V_0),V_0)
+13     | body_46(45,buy_from_trust(V_0),V_0) :- person(V_0)
+14     | 0.3::choice(45,0,buy_from_trust(A1),A1)
+15     | buy_from_trust(V_0) :- body_46(45,buy_from_trust(V_0),V_0), choice(45,0,buy_from_trust(V_0),V_0)
+16     | buys(V_0,1) :- marketed(V_0,1), buy_from_marketing(V_0)
+17     | buys(V_0,1) :- trusts(V_0,V_1), buys(V_1,1), buy_from_trust(V_0)
+18     | person(denis)
+19     | person(thiago)
+20     | person(leliane)
+21     | person(fabio)
+22     | trusts(thiago,leliane)
+23     | trusts(denis,leliane)
+24     | trusts(denis,fabio)
+25     | trusts(fabio,leliane)
+26     | trusts(leliane,fabio)
+27     | trusts(leliane,thiago)
+28     | 0.5::marketed(denis,0)
+29     | 0.5::marketed(fabio,0)
+30     | 0.5::marketed(leliane,0)
+31     | 0.5::marketed(thiago,0)
+32     | body_81(80,multi) :- true
+33     | 0.2::choice(80,0,market(denis))
+34     | market(denis) :- body_81(80,multi), choice(80,0,market(denis))
+35     | 0.2::choice(80,1,market(fabio))
+36     | market(fabio) :- body_81(80,multi), choice(80,1,market(fabio))
+37     | 0.2::choice(80,2,market(leliane))
+38     | market(leliane) :- body_81(80,multi), choice(80,2,market(leliane))
+39     | 0.2::choice(80,3,market(none))
+40     | market(none) :- body_81(80,multi), choice(80,3,market(none))
+41     | 0.2::choice(80,4,market(thiago))
+42     | market(thiago) :- body_81(80,multi), choice(80,4,market(thiago))
+43     | mutual_exclusive([choice(80,0,market(denis)), choice(80,1,market(fabio)), choice(80,2,market(leliane)), choice(80,3,market(none)), choice(80,4,market(thiago))])
