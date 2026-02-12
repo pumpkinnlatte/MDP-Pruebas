@@ -61,8 +61,6 @@ class MDP(object):
         self.__utilities = self._engine.assignments('utility')
 
         next_state_fluents = self.next_state_fluents()
-
-        # [Prueba] anadimos los current state fluents a las queries 
         current_state_fluents = self.current_state_fluents()
 
         queries = list(set(self.__utilities) | set(next_state_fluents) | set(actions) | set(current_state_fluents))
@@ -70,9 +68,6 @@ class MDP(object):
         self._engine.relevant_ground(queries)
 
         self.__next_state_queries = self._engine.compile(next_state_fluents)
-
-        print("\n",self.__next_state_queries,"\n")
-
         self.__reward_queries = self._engine.compile(self.__utilities)
 
         # DEBUG: Tabla post-inyección 
@@ -286,9 +281,6 @@ class MDP(object):
         """
         evidence = state.copy()
         evidence.update(action)
-
-        #print("\nEVIDENCE FOR TRANSITION\n", self.__next_state_queries, "\n") # DEBUG
-
         return self._engine.evaluate(self.__next_state_queries, evidence)
 
 
