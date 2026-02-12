@@ -37,26 +37,16 @@ class MDP(object):
         # DEBUG: Tabla post-inyección 
         MDPDebugger.save_instructions_table(self._engine._db, filename="initial_instructions.txt")
     
-
         # obtain the state fluent schema 
         self.state_schema = self.__build_state_schema()
         print(self.state_schema)
 
-         # add dummy current state fluents
-
+        # add dummy current state fluents
         for factor in self.state_schema.factors:
-            if len(factor) == 1:
-                term = factor[0]
+            for term in factor:
                 fluent_term = Fluent.create_fluent(term, 0)
                 self._engine.add_fact(fluent_term, 0.5)
-            else:
-                current_ad_fluents = []
-                for term in factor:
-                    current_ad_fluents.append(Fluent.create_fluent(term, 0))
-
-                probabilities = [1.0 / len(current_ad_fluents)] * len(current_ad_fluents)
-                self._engine.add_annotated_disjunction(current_ad_fluents, probabilities)
-
+        
         actions = self.actions()
         self._engine.add_annotated_disjunction(actions, [1.0 / len(actions)] * len(actions))
 
@@ -65,8 +55,15 @@ class MDP(object):
         queries = list(set(self.__utilities) | set(next_state_fluents) | set(actions))
         self._engine.relevant_ground(queries)
 
+        print("\nNXT STATE FLUENTS:", next_state_fluents, "")
+
         self.__next_state_queries = self._engine.compile(next_state_fluents)
+
+        print("\n--- NXSTATE QUERIES", self.__next_state_queries,"\n")
         self.__reward_queries = self._engine.compile(self.__utilities)
+
+        # DEBUG: Tabla post-inyección 
+        MDPDebugger.save_instructions_table(self._engine._db, filename="post_injection_instructions.txt")
 
     def __build_state_schema(self):
         """
@@ -275,8 +272,10 @@ class MDP(object):
         :rtype: list of pairs (problog.logic.Term, float)
         """
         evidence = state.copy()
+        
         evidence.update(action)
         return self._engine.evaluate(self.__next_state_queries, evidence)
+
 
     def transition_model(self):
         """
