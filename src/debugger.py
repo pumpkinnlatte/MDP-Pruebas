@@ -14,6 +14,10 @@
 # along with MDP-ProbLog.  If not, see <http://www.gnu.org/licenses/>.
 
 import os
+import sys
+import pandas as pd
+import itertools
+from src.fluent import StateSpace, ActionSpace, Fluent
 from datetime import datetime
 
 
@@ -102,3 +106,56 @@ class MDPDebugger(object):
                 print("[{}] Type: {} | Content: {}".format(i, node_type, node))
             except Exception as e:
                 print("[{}] ACCESS ERROR: {}".format(i, e))
+
+
+
+class CPTAnalyzer:
+    def __init__(self, mdp):
+        self.mdp = mdp
+        # Indices para búsqueda rápida de factores por nombre
+        self.state_factors = self._index_factors(mdp.state_schema.factors)
+        self.action_factors = self._get_action_factors()
+
+    def _index_factors(self, factors):
+        """Organiza los factores por el nombre de su predicado (functor)."""
+        index = {}
+        for group in factors:
+            # Asumimos que todos los términos del grupo comparten functor (ej: dado(1), dado(2)...)
+            name = group[0].functor
+            index[name] = group
+        return index
+
+    def _get_action_factors(self):
+        """
+        Recupera las acciones y las agrupa como un factor único o múltiples
+        dependiendo de cómo estén definidas en MDP-ProbLog.
+        """
+       
+        actions = self.mdp.actions()
+        if not actions:
+            return {}
+    
+        # Estrategia: Agrupar por functor
+        groups = {}
+        for act in actions:
+            name = act.functor
+            if name not in groups:
+                groups[name] = []
+            groups[name].append(act)
+        return groups
+
+    def _get_domain_and_type(self, name):
+        """Busca el dominio de una variable y determina si es estado o acción."""
+        if name in self.state_factors:
+            return self.state_factors[name], 'state'
+        if name in self.action_factors:
+            return self.action_factors[name], 'action'
+        
+        # Caso especial: Si el usuario pone el nombre de una acción específica (ej: 'tirar')
+        # y esa acción es un átomo sin argumentos (aridad 0), la buscamos directamente.
+        for act_name, terms in self.action_factors.items():
+            for term in terms:
+                if str(term) == name:
+                    return [term], 'action_atom'
+                    
+        raise ValueError(f"La variable '{name}' no se encuentra en el esquema de Estados ni de Acciones.")

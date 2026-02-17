@@ -1,6 +1,6 @@
 
 from src.engine import Engine as eng
-from src.fluent import Fluent, FluentSchema
+from src.fluent import Fluent, FluentSchema, StateSpace, ActionSpace
 from collections import defaultdict #
 
 from problog.logic import Term
@@ -291,10 +291,82 @@ class MDP(object):
         :rtype: dict of ((state,action), list of probabilities)
         """
         transitions = {}
-        states  = StateSpace(self.current_state_fluents())
+        states  = StateSpace(self.state_schema)
         actions = ActionSpace(self.actions())
         for state in states:
             for action in actions:
                 probabilities = self.transition(state, action)
                 transitions[(tuple(state.values()), tuple(action.values()))] = probabilities
         return transitions
+
+
+    def reward(self, state, action, cache=None):
+        """
+        Return the immediate reward value of the transition
+        induced by applying `action` to the given `state`.
+        Cache results optionally if parameter `cache` is given.
+
+        :param state: state vector representation of current state fluents
+        :type state: list of 0/1 according to state fluents order
+        :param action: action vector representation
+        :type action: one-hot vector encoding of action as a list of 0/1
+        :param cache: key to cache results
+        :type cache: immutable, hashable object
+        :rtype: float
+        """
+        if cache is None:
+            return self.__reward(state, action)
+
+        value = self.__reward_cache.get(cache, None)
+        if value is None:
+            value = self.__reward(state, action)
+            self.__reward_cache[cache] = value
+
+        return value
+
+
+    def __reward(self, state, action):
+        """
+        Devuelve el valor de recompensa inmediata esperado para una transicion
+        inducida por aplicar una accion a un estado particular.
+        """
+
+        """
+        Return the immediate reward value of the transition
+        induced by applying `action` to the given `state`.
+
+        :param state: state vector representation of current state fluents
+        :type state: list of 0/1 according to state fluents order
+        :param action: action vector representation
+        :type action: one-hot vector encoding of action as a list of 0/1
+        :rtype: float
+        """
+
+        evidence = state.copy()
+        evidence.update(action)     
+        total = 0
+        for term, prob in self._engine.evaluate(self.__reward_queries, evidence):
+            total += prob * self.__utilities[term].value
+        return total
+
+
+    #Devuelve el modelo de recompensas de todas las transiciones validas.
+    def reward_model(self):
+        """
+        Return the reward model of all valid transitions.
+
+        :rtype: dict of ((state,action), float)
+        """
+
+        #print("\n---- Reward_model ----\n")
+        rewards = {}
+        states  = StateSpace(self.state_schema)
+        actions = ActionSpace(self.actions())
+        for state in states:
+            #print(f"State: {state}")
+            for action in actions:
+                #print(f"  Action: {action}")
+                reward = self.reward(state, action)
+                rewards[(tuple(state.values()), tuple(action.values()))] = reward
+                #print(f"    Reward: {reward}")
+        return rewards
