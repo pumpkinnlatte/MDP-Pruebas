@@ -13,11 +13,9 @@
 # You should have received a copy of the GNU General Public License
 # along with MDP-ProbLog.  If not, see <http://www.gnu.org/licenses/>.
 
-from mdpproblog.debugger import MDPDebugger #DEBUG
-
 import sys
 
-from mdpproblog.fluent import StateSpace, ActionSpace
+from src.fluent import StateSpace, ActionSpace
 
 class ValueIteration(object):
     """
@@ -25,6 +23,8 @@ class ValueIteration(object):
     It performs successive, synchronous Bellman backups until
     convergence is achieved for the given error epsilon for the
     infinite-horizon MDP with discount factor gamma.
+
+    Refactored to support Mixed-Radix Indexing and Annotated Disjunctions (ADS).
 
     :param mdp: MDP representation
     :type mdp: mdpproblog.MDP
@@ -49,8 +49,11 @@ class ValueIteration(object):
         V = {}
         policy = {}
 
-        states  = StateSpace(mdp.state_schema)
-        actions = ActionSpace(mdp.actions())
+        states  = StateSpace(self._mdp.state_schema)
+        actions = ActionSpace(self._mdp.actions())
+
+        # Distancias de cada fluente a su posición en el vector de estado
+        strides = self._mdp.state_schema.strides
 
         iteration = 0
         while True:
@@ -62,91 +65,83 @@ class ValueIteration(object):
                 greedy_action = None
                 for (j, action) in enumerate(actions):
 
-                    transition = self._mdp.transition(state, action, (i, j))        # Obtiene la probabilidad de transición P(s'|s,a)
-                    reward = self._mdp.reward(state, action, (i, j))                # Obtiene la recompensa asignada R(s,a)
+                    # Obtengo una lista de factores: [[(termino, prob), ...]]
+                    transition_groups = self._mdp.structured_transition(state, action, (i, j))
+                    
+                    reward = self._mdp.reward(state, action, (i, j))                # Obtiene la recompensa R(s,a)
 
-                    Q = reward + gamma * self.__expected_value(transition, V)       # Calcula el action value Q(s,a)
+                    # Expected value con strides
+                    expected_v = self.__expected_value(transition_groups, strides, V)  
 
-                    if Q >= max_value:                      # Si el action value es mayor o igual al valor máximo actual
-                        max_value = Q                       # Actualiza el valor máximo   
+                    Q = reward + gamma * expected_v
+
+                    if Q >= max_value:                      
+                        max_value = Q                       # Actualiza el valor máximo  
                         greedy_action = actions[j]          # Actualiza la acción greedy 
 
                 residual = abs(V.get(i, 0) - max_value)
-                max_residual = max(max_residual, residual)  # Compara el residual máximo actual con el residual de este estado
+                max_residual = max(max_residual, residual)  
+                
                 V[i] = max_value                            # Actualiza el valor del estado 
                 policy[i] = greedy_action                   # Asigna como acción óptima la acción greedy encontrada
 
-            # Criterio de convergencias
+            # Criterio de convergencia
             if max_residual <= 2 * epsilon * (1 - gamma) / gamma:
                 break
 
-        V = { states[i]: value for i, value in V.items() }
-        policy = { states[i]: action for i, action in policy.items() }
-
-        return V, policy, iteration
-
-
-    def __expected_value(self, transition, V, k=0, index=0, joint=1.0):
-        """
-        Computa el valor esperado futuro dada una transición y un valor de estado V.
-        """
-
-        """
-        Compute the expected future value for the given `transition` with
-        state value given by `V`.
-
-        :param transition: transition probabilities
-        :type transition: list of pairs (fluent, float)
-        :param V: current value function
-        :type V: dict(int,float)
-        :rtype: float
-        """
-
-        # --- CASO BASE: Hoja del Árbol ---
-        # Si la lista de transiciones está vacía, hemos tomado una decisión (0 o 1) 
-        # para todas las variables de estado.
-        if len(transition) == 0:
-            # 'index': Es el identificador entero único del estado resultante s' (construido bit a bit).
-            # 'joint': Es la probabilidad acumulada de haber llegado a esta hoja específica.
-            # Retornamos la contribución ponderada de este estado: P(s') * V(s').
-            return joint * V.get(index, 0.0)
-
-        # --- PASO RECURSIVO: Nodo del Árbol ---
+        V_final = {}
+        policy_final = {}
         
-        # Obtenemos la probabilidad de que la variable actual (nivel k) sea VERDADERA (1).
-        # transition[0] es la variable actual, [1] es su probabilidad.
-        probability = transition[0][1]
-
-        # --- RAMIFICACIÓN (Branching) ---
-        
-        # CASO 1: Determinista Positivo (P ≈ 1.0)
-        # La variable es ciertamente 1. No ramificamos, solo avanzamos.
-        if abs(probability - 1.0) <= 1e-06:
-            # transition[1:]: Avanzamos a la siguiente variable en la lista.
-            # k + 1: Incrementamos la posición del bit.
-            # index + 2**k: ASUNCIÓN BINARIA. "Encendemos" el bit k sumando su potencia de 2.
-            ret1 = self.__expected_value(transition[1:], V, k + 1, index + 2**k, joint)
-            ret2 = 0.0 # La rama negativa tiene probabilidad 0.
-
-        # CASO 2: Determinista Negativo (P ≈ 0.0)
-        # La variable es ciertamente 0.
-        elif abs(probability - 0.0) <= 1e-06:
-            ret1 = 0.0 # La rama positiva tiene probabilidad 0.
-            # index: NO sumamos 2**k. El bit k permanece en 0.
-            ret2 = self.__expected_value(transition[1:], V, k + 1, index, joint)
-
-        # CASO 3: Estocástico (0 < P < 1)
-        # El estado se divide en dos mundos posibles. Debemos sumar el valor esperado de ambos.
-        else:
-            # Rama Derecha (La variable es 1):
-            # - Actualizamos la probabilidad conjunta multiplicando por 'probability'.
-            # - Actualizamos el índice sumando 2**k.
-            ret1 = self.__expected_value(transition[1:], V, k + 1, index + 2**k, joint * probability)
+        for i in range(len(states)):
             
-            # Rama Izquierda (La variable es 0):
-            # - Actualizamos la probabilidad conjunta multiplicando por el complemento (1 - probability).
-            # - El índice se mantiene igual (bit k en 0).
-            ret2 = self.__expected_value(transition[1:], V, k + 1, index, joint * (1 - probability))
+            state_obj = states[i]
+            state_key = tuple(state_obj.items())
+            
+            V_final[state_key] = V[i]
+    
+            raw_action = policy.get(i)
+            clean_action = None
+            
+            if raw_action is not None:
+                for term, val in raw_action.items():
+                    if val == 1:
+                        clean_action = term
+                        break
+            
+            policy_final[state_key] = clean_action
 
-        # Principio de Aditividad de la Esperanza: E[X] = P(A)E[X|A] + P(¬A)E[X|¬A]
-        return ret1 + ret2
+        return V_final, policy_final, iteration
+
+
+    def __expected_value(self, transition_groups, strides, V, k=0, current_index=0, joint=1.0):
+        """
+        Calcula de manera recursiva el valor esperado futuro para espacios de estado de bases mixtas.
+        
+        :param transition_groups: Lista de factores, cada factor es una lista de (term, prob).
+        :param strides: Lista de desplazamientos posicionales para indexación.
+        :param V: Current Value Function dictionary (Integer Index -> Float Value).
+        :param k: Recursion depth (Index of the current factor being processed).
+        :param current_index: Accumulated integer index for the state branch.
+        :param joint: Accumulated probability of the current branch.
+        """
+
+        if len(transition_groups) == k:
+            return joint * V.get(current_index, 0.0) #return expected value
+
+        factor = transition_groups[k]
+        stride = strides[k]
+
+        if(len(factor) == 1):
+            term, p_true = factor[0]
+            options = [(None, 1.0 - p_true), (term, p_true)]
+        else:
+            options = factor
+
+        expected_sum = 0.0
+        
+        for val, (term, prob) in enumerate(options):
+            if abs(prob - 0.0) <= 1e-06:
+                continue
+            expected_sum += self.__expected_value( transition_groups, strides, V, k + 1, current_index + val * stride, joint * prob)
+
+        return expected_sum
