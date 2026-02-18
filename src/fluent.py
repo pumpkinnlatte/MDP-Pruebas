@@ -83,8 +83,8 @@ class FluentSchema(object):
     @property
     def strides(self):
         """
-        Return the positional weights for each factor in mixed-radix notation.
-        For example, with bases [2, 3, 2], strides are [1, 2, 6].
+        Retorna las posiciones de cada factor en la codificación de estado en notación de base mixta.
+        Por ejemplo, para las bases [2, 3, 2], los strides son [1, 2, 6].
 
         :rtype: list of int
         """

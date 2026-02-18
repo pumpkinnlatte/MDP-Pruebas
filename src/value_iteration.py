@@ -63,12 +63,13 @@ class ValueIteration(object):
 
                 max_value = -sys.maxsize
                 greedy_action = None
+           
                 for (j, action) in enumerate(actions):
 
                     # Obtengo una lista de factores: [[(termino, prob), ...]]
                     transition_groups = self._mdp.structured_transition(state, action, (i, j))
                     
-                    reward = self._mdp.reward(state, action, (i, j))                # Obtiene la recompensa R(s,a)
+                    reward = self._mdp.reward(state, action, (i, j))           
 
                     # Expected value con strides
                     expected_v = self.__expected_value(transition_groups, strides, V)  
@@ -126,7 +127,7 @@ class ValueIteration(object):
         """
 
         if len(transition_groups) == k:
-            return joint * V.get(current_index, 0.0) #return expected value
+            return joint * V.get(current_index, 0.0) #retorna el expected value para estados finales
 
         factor = transition_groups[k]
         stride = strides[k]
@@ -140,8 +141,8 @@ class ValueIteration(object):
         expected_sum = 0.0
         
         for val, (term, prob) in enumerate(options):
-            if abs(prob - 0.0) <= 1e-06:
+            if abs(prob - 0.0) <= 1e-06: # Si la probabilidad es 0, no se expande esa rama
                 continue
             expected_sum += self.__expected_value( transition_groups, strides, V, k + 1, current_index + val * stride, joint * prob)
 
-        return expected_sum
+        return expected_sum # retorna el expected value for para la rama actual

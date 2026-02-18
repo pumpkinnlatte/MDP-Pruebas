@@ -9,6 +9,11 @@ state_fluent(viento).
 
 % Acciones
 action(esperar).
+action(moverse).
+
+%utility
+utility(esperar, -1).
+utility(clima(soleado, 1), 5).
 
 % Modelo de transicion
 

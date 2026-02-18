@@ -41,6 +41,8 @@ class MDP(object):
         self.state_schema = self.__build_state_schema()
         print(self.state_schema)
 
+        self._next_state_factors = self.state_schema.get_factors_at(1)
+
         # add dummy current state fluents
         for factor in self.state_schema.factors:
 
@@ -242,6 +244,40 @@ class MDP(object):
         :rtype: list of problog.logic.Term sorted by string representation
         """
         return sorted(self._engine.declarations('action'), key=str)
+
+
+    def structured_transition(self, state, action, cache=None):
+        """
+        Return the probabilities of next state fluents grouped by factors
+        according to the FluentSchema. This handles both ISF (binary) and
+        ADS (multi-valued) groups correctly for recursive calculation.
+
+        :param state: state vector representation
+        :param action: action vector representation
+        :param cache: caching key
+        :rtype: list of list of (problog.logic.Term, float)
+        """
+        # 1. Obtener probabilidades
+        flat_transitions = self.transition(state, action, cache)
+
+        # 2. Indexar probabilidades para acceso O(1)
+        # Usamos str(term) como clave para garantizar coincidencia exacta
+        prob_map = {str(term): prob for term, prob in flat_transitions}
+
+        structured_result = []
+
+        # 3. Rellenar la plantilla pre-calculada
+        for factor_template in self._next_state_factors:
+            group_data = []
+            for term in factor_template:
+                # Buscamos la probabilidad en el mapa del motor
+                # Si no existe, es 0.0
+                p = prob_map.get(str(term), 0.0)
+                group_data.append((term, p))
+            
+            structured_result.append(group_data)
+
+        return structured_result
 
     def transition(self, state, action, cache=None):
         """
