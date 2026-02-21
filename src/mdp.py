@@ -58,6 +58,7 @@ class MDP(object):
                 self._engine.add_annotated_disjunction(ad_states, [1.0 / len(ad_states)] * len(ad_states))
         
         actions = self.actions()
+
         self._engine.add_annotated_disjunction(actions, [1.0 / len(actions)] * len(actions))
 
         self.__utilities = self._engine.assignments('utility')

@@ -159,7 +159,7 @@ class FluentSchema(object):
         # 3. Grupos Mutuamente Excluyentes (ADS)
         n_groups = len(ads_list)
         lines.append(f"[ADS] Grupos Mutuamente Excluyentes (Cantidad: {n_groups})")
-        lines.append(f"      Descripción: En cada grupo, soln_groupso UNA OPCIÓN es verdadera (One-Hot).")
+        lines.append(f"      Descripción: En cada grupo, solo UNA OPCIÓN es verdadera (One-Hot).")
 
         if n_groups == 0:
             lines.append("      (None)")

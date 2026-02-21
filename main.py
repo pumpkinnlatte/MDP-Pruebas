@@ -12,133 +12,6 @@ def load_model(domain_path):
         domain_model = f.read()
     return domain_model
 
-def cpt_analysis(mdp, target_term_str):
-    """
-    Genera la CPT para un TÉRMINO COMPLETO específico.
-    
-    Lógica de detección:
-    1. Busca el término exacto en el esquema.
-    2. Si el término pertenece a un factor de tamaño > 1 (ADS), muestra TODO el grupo 
-       (necesario para verificar que sumen 1.0).
-    3. Si el término está solo en el factor (ISF), muestra probabilidad True/False.
-    """
-    
-    schema = mdp.state_schema
-    target_factor = None
-    is_ads = False
-
-    # 1. Búsqueda del Factor por Término Exacto
-    # [cite_start]Iteramos sobre los factores definidos en el esquema [cite: 5]
-    for factor in schema.factors:
-        # Convertimos cada término del factor a string para comparar
-        factor_terms_str = [str(term) for term in factor]
-        
-        if target_term_str in factor_terms_str:
-            target_factor = factor
-            # Determinamos si es Multivaluado (ADS) o Booleano (ISF)
-            if len(factor) > 1:
-                is_ads = True
-            break
-
-    if target_factor is None:
-        print(f"[ERROR] No se encontró el término exacto '{target_term_str}' en el esquema.")
-        return
-
-    # 2. Configuración de Archivo y Encabezados
-    # Limpiamos el nombre del archivo para evitar caracteres inválidos (opcional)
-    safe_name = target_term_str.replace("(", "_").replace(")", "").replace(",", "_")
-    filename = f"src/debug/cpt_term_{safe_name}.txt"
-    
-    with open(filename, "w", encoding="utf-8") as f:
-        
-        f.write("="*120 + "\n")
-        f.write(f"CPT PARA: '{target_term_str}'\n")
-        f.write(f" TIPO: {'Multivaluado (ADS - Grupo Completo)' if is_ads else 'Booleano (ISF - Individual)'}\n")
-        f.write("="*120 + "\n")
-
-        # --- Encabezados de Estado (Izquierda) ---
-        all_state_fluents = schema.get_flat_list()
-        state_headers = [str(term) for term in all_state_fluents]
-
-  
-        action_header = ["ACCIÓN"]
-
-        if is_ads:
-            prob_headers = [str(term) for term in target_factor] + ["SUMA"]
-        else:
-            prob_headers = [f"{target_factor[0]} (True)", f"{target_factor[0]} (False)"]
-
-        col_width = 25
-        total_headers = state_headers + action_header + prob_headers
- 
-        row_fmt = " | ".join([f"{{:<{col_width}}}"] * len(total_headers)) + "\n"
-        separator = "-" * (len(total_headers) * (col_width + 3)) + "\n"
-
-        f.write(row_fmt.format(*total_headers))
-        f.write(separator)
-
-
-        states = StateSpace(mdp.state_schema)
-        actions = ActionSpace(mdp.actions())
-
-        for state in states:
-
-            state_str_lookup = {str(k): v for k, v in state.items()}
-
-            state_values = []
-            for term in all_state_fluents:
-                term_t0 = Fluent.create_fluent(term, 0)
-                val = state_str_lookup.get(str(term_t0), 0)
-                state_values.append(str(val))
-            
-            for action in actions:
-                action_name = _get_action_name(action)
-                
-                # P(X'|Obs(x,a))
-                next_state_probs = mdp.structured_transition(state, action)
-
-
-                prob_map = {str(term): prob for term, prob in next_state_probs}
-                prob_values = []
-                
-                if is_ads:
-                    # ADS: Recuperar probs de todo el grupo para validar suma
-                    current_sum = 0.0
-                    for term in target_factor:
-                        term_t1 = Fluent.create_fluent(term, 1)
-                        p = prob_map.get(str(term_t1), 0.0)
-                        prob_values.append(p)
-                        current_sum += p
-                    prob_values.append(current_sum)
-                else:
-                    # ISF: Recuperar prob del término único
-                    term = target_factor[0]
-                    term_t1 = Fluent.create_fluent(term, 1)
-                    p_true = prob_map.get(str(term_t1), 0.0)
-                    prob_values.append(p_true)
-                    prob_values.append(1.0 - p_true)
-
-                # Formateo y Alertas
-                formatted_probs = []
-                for idx, v in enumerate(prob_values):
-                    v_str = f"{v:.4f}"
-                    if is_ads and idx == len(prob_values)-1 and abs(v - 1.0) > 1e-6:
-                        v_str += " [!]"
-                    formatted_probs.append(v_str)
-
-                # Escritura
-                full_row_data = state_values + [action_name] + formatted_probs
-                f.write(row_fmt.format(*full_row_data))
-
-    print(f"\n[INFO] Análisis de término generado en: {filename}")
-
-def _get_action_name(valuation):
-    """Auxiliar: Devuelve el nombre de la acción activa."""
-    for term, value in valuation.items():
-        if value == 1:
-            return str(term)
-    return "None"
-
 def print_transitions(mdp, states, actions):
     print("\n" + "="*60)
     print("      ANÁLISIS DE TRANSICIONES ESTRUCTURADAS (ADS/ISF)")
@@ -228,11 +101,23 @@ def print_solution(V, policy, iterations, uptime):
     print(">> Average time per iteration = {0:.3f}sec.".format(uptime / iterations))
 
 
+def show_state_space(schema):
+
+    states = StateSpace(schema)
+
+    print("\n------ VI States: ----\n")
+    for i, state in enumerate(states):
+        print(f"  {i}: {state}")
+
+    
+
 if __name__ == "__main__":
 
-    #prog_dir = "tests/model_tests/dice_cpt_02.pl"
-    #prog_dir = "tests/model_tests/weather.pl"
-    prog_dir = "pruebas/vm1.pl"
+    prog_dir = "tests/model_tests/mitchell_grid.pl"
+    #prog_dir = "tests/model_tests/student_MDP.pl"
+    #prog_dir = "tests/model_tests/mobile_robot_j.pl"
+
+    #prog_dir = "pruebas/vm1.pl"
 
     # Cargar modelo
     model_str = load_model(prog_dir)
@@ -240,10 +125,21 @@ if __name__ == "__main__":
     # Inicialización del MDP
     mdp = MDP(model_str)
 
+    #DEBUG
+    MDPDebugger.export_transition_model(mdp)
+    MDPDebugger.export_reward_model(mdp)
+
+    show_state_space(mdp.state_schema)
+
     # VALUE ITERATION
     start = time.perf_counter()     
-    V, policy, iterations = solve_model(mdp, 0.9, 0.1)
+    V, policy, iterations, Q_table, V_history = solve_model(mdp, 0.9, 0.1)
     end = time.perf_counter()
     uptime = end - start
 
     print_solution(V, policy, iterations, uptime)
+
+    MDPDebugger.export_q_table(mdp, Q_table)
+    MDPDebugger.export_value_history(mdp, V_history)
+
+

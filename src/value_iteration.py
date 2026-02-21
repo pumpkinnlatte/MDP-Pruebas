@@ -48,6 +48,8 @@ class ValueIteration(object):
         
         V = {}
         policy = {}
+        Q_table_internal = {}
+        V_history = {}
 
         states  = StateSpace(self._mdp.state_schema)
         actions = ActionSpace(self._mdp.actions())
@@ -76,6 +78,8 @@ class ValueIteration(object):
 
                     Q = reward + gamma * expected_v
 
+                    Q_table_internal[(i, j)] = Q 
+
                     if Q >= max_value:                      
                         max_value = Q                       # Actualiza el valor máximo  
                         greedy_action = actions[j]          # Actualiza la acción greedy 
@@ -85,6 +89,8 @@ class ValueIteration(object):
                 
                 V[i] = max_value                            # Actualiza el valor del estado 
                 policy[i] = greedy_action                   # Asigna como acción óptima la acción greedy encontrada
+
+                V_history[iteration] = V.copy()
 
             # Criterio de convergencia
             if max_residual <= 2 * epsilon * (1 - gamma) / gamma:
@@ -111,7 +117,22 @@ class ValueIteration(object):
             
             policy_final[state_key] = clean_action
 
-        return V_final, policy_final, iteration
+        Q_final = {}
+        for (i, j), q_val in Q_table_internal.items():
+            state_obj = states[i]
+            state_key = tuple(state_obj.items())
+
+            # Extracción limpia de la acción
+            raw_action = actions[j]
+            clean_action = None
+            for term, val in raw_action.items():
+                if val == 1:
+                    clean_action = str(term)
+                    break
+
+            Q_final[(state_key, clean_action)] = q_val
+
+        return V_final, policy_final, iteration, Q_final, V_history
 
 
     def __expected_value(self, transition_groups, strides, V, k=0, current_index=0, joint=1.0):
