@@ -394,16 +394,11 @@ class MDP(object):
 
         :rtype: dict of ((state,action), float)
         """
-
-        #print("\n---- Reward_model ----\n")
         rewards = {}
         states  = StateSpace(self.state_schema)
         actions = ActionSpace(self.actions())
         for state in states:
-            #print(f"State: {state}")
             for action in actions:
-                #print(f"  Action: {action}")
                 reward = self.reward(state, action)
                 rewards[(tuple(state.values()), tuple(action.values()))] = reward
-                #print(f"    Reward: {reward}")
         return rewards

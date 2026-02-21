@@ -143,10 +143,10 @@ class FluentSchema(object):
                 # Si tiene más, es un grupo ADS. Guardamos su índice para referencia.
                 ads_list.append((i, factor))
 
-        # 2. Fluentes Binarios Independientes (ISF)
+        # 2. Fluentes Binarios Booleanos (BSF)
         n_bin = len(isf_list)
-        lines.append(f"[ISF] Fluentes Independientes (Cantidad: {n_bin})")
-        lines.append(f"      Descripción: Cada uno itera entre {{0, 1}} independientemente.")
+        lines.append(f"[BSF] Fluentes Booleanos (Cantidad: {n_bin})")
+        lines.append(f"      Descripción: Cada uno itera entre {{0, 1}}.")
         
         if n_bin == 0:
             lines.append("      (None)")

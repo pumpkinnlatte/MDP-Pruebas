@@ -167,3 +167,4 @@ class ValueIteration(object):
             expected_sum += self.__expected_value( transition_groups, strides, V, k + 1, current_index + val * stride, joint * prob)
 
         return expected_sum # retorna el expected value for para la rama actual
+        

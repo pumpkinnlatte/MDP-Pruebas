@@ -27,7 +27,7 @@ class Engine(object):
         :type declaration_type: str
         :rtype: list of problog.logic.Term
         """
-        return [t[0] for t in self._engine.query(self._db, Term(declaration_type, None))] #ProbLog. query
+        return [t[0] for t in self._engine.query(self._db, Term(declaration_type, None))] #ProbLog.
 
     #Usado para obtener los valores asignados de un cierto tipo con aridad 2
     def assignments(self, assignment_type):
