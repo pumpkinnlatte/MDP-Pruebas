@@ -81,137 +81,122 @@ class MDP(object):
         Build the state fluent schema by collecting explicit and implicit
         declarations and inferring fluent types (ISF vs ADS).
 
+        :raises ValueError: if an ADS group resolves to fewer than 2 options
         :rtype: FluentSchema
         """
         schema = FluentSchema()
 
-        explicit_fluents = self._engine.assignments('state_fluent')
-        implicit_fluents = self._engine.declarations('state_fluent')
-        inferred_types = self.infer_types()
+        # Collect classified terms from both channels.
+        # Explicit declarations take precedence: implicit terms already
+        # present in `all_terms` are skipped.
+        all_terms = {}  # { term_str: (term, fluent_type) }
+        all_terms.update(self.__classify_explicit_fluents())
 
-         # COLLECT ALL TERMS FIRST
-        all_terms = {}  # {term_str: (term, type)}
-        
-        # Process explicit fluents
-        for term, value in explicit_fluents.items():
-            fluent_type = str(value)
-            all_terms[str(term)] = (term, fluent_type)
-
-        # Process implicit fluents
-        for term in implicit_fluents:
-            term_str = str(term)
+        for term_str, entry in self.__classify_implicit_fluents().items():
             if term_str not in all_terms:
-                term_signature = (term.functor, term.arity)
-                fluent_type = inferred_types.get(term_signature, 'isf')
-                all_terms[term_str] = (term, fluent_type)
+                all_terms[term_str] = entry
 
-        # NOW ADD THEM IN SORTED ORDER
-        ads_accumulator = {}
-        
+        # Partition terms by type and register them in sorted order.
+        ads_accumulator = {}  # { group_key: [term, ...] }
+
         for term_str in sorted(all_terms.keys()):
             term, fluent_type = all_terms[term_str]
-            
+
             if fluent_type == 'ads':
                 group_key = self.__get_group_key(term)
-                if group_key not in ads_accumulator:
-                    ads_accumulator[group_key] = []
-                ads_accumulator[group_key].append(term)
-            elif fluent_type == 'isf':
+                ads_accumulator.setdefault(group_key, []).append(term)
+            elif fluent_type == 'bsf':
                 schema.add_isf(term)
 
-        # Add ADS groups in sorted order
+        # Validate and register ADS groups in sorted key order.
         for key in sorted(ads_accumulator.keys()):
-            terms_group = sorted(ads_accumulator[key], key=str)
-            schema.add_group(terms_group)
+            group = sorted(ads_accumulator[key], key=str)
+            if len(group) < 2:
+                raise ValueError(
+                    f"ADS group '{key}' has only {len(group)} option. "
+                    "A mutually exclusive group requires at least 2 options. "
+                    "Either add more values to the domain or declare the "
+                    "fluent as 'bsf'."
+                )
+            schema.add_group(group)
 
         return schema
 
+    def __classify_explicit_fluents(self):
+        """
+        Classify state fluents declared via the `state_fluent/2` predicate.
+
+        Reads all ground instances of `state_fluent(Term, Type)` from the
+        program, where `Type` must be either the atom 'bsf' (binary) or
+        'ads' (multi-valued). The constant 'bsf' maps to 'bsf'
+        internally for consistency with the schema API.
+
+        Returns a dict mapping each term's string representation to a
+        `(term, fluent_type)` pair.
+        :rtype: dict of (str, (problog.logic.Term, str))
+        """
+        classified = {}
+        for term, type_constant in self._engine.assignments('state_fluent').items():
+            tag = str(type_constant)
+            if tag == 'bsf' or tag == 'ads':
+              fluent_type = tag
+            else:
+                raise ValueError(
+                    f"Unknown state fluent type tag '{tag}' for term '{term}'. "
+                    "Valid tags are 'bsf' and 'ads'."
+                )
+            classified[str(term)] = (term, fluent_type)
+        return classified
+
+    def __classify_implicit_fluents(self):
+        """
+        Classify state fluents declared via the `state_fluent/1` predicate.
+
+        Returns a dict mapping each term's string representation to a
+        `(term, fluent_type)` pair.
+        :rtype: dict of (str, (problog.logic.Term, str))
+        """
+        implicit_terms = self._engine.declarations('state_fluent')
+
+        # Group grounded terms by their static identifier key (args[:-1]).
+        classified = {}
+        groups = {}  # { group_key: [term, ...] } — used only for arity >= 2
+
+        for term in implicit_terms:
+            if len(term.args) <= 1:
+                # Arity 0 or 1: always an independent binary variable.
+                classified[str(term)] = (term, 'bsf')
+            else:
+                # Arity >= 2: defer to the Cardinality Rule after grouping.
+                key = self.__get_group_key(term)
+                groups.setdefault(key, []).append(term)
+
+        # Apply the Cardinality Rule to multi-argument groups.
+        for group in groups.values():
+            fluent_type = 'ads' if len(group) >= 2 else 'bsf'
+            for term in group:
+                classified[str(term)] = (term, fluent_type)
+
+        return classified
 
     def __get_group_key(self, term):
         """
         Generate the grouping key for an annotated disjunction term.
         Strategy: functor plus all arguments except the last one.
 
-        :param term: state fluent term
+        Last-Argument Rule: in a term `f(A1, …, AN)`, arguments `A1` through
+        `A(N-1)` are treated as static identifiers the group key), and argument
+        `AN` is treated as the mutable value (the categorical domain).
+
+        param term: an atemporal state fluent term
         :type term: problog.logic.Term
         :rtype: str
         """
-        if len(term.args) == 0:
+        if len(term.args) <= 1:
             return term.functor
 
-        if len(term.args) == 1:
-            return term.functor
-
-        variable_args = term.args[:-1]
-        return "{}({})".format(term.functor, ','.join(map(str, variable_args)))
-
-    def infer_types(self): ##__
-        """
-        Infer fluent types (ISF vs ADS) by tracing their definition origins
-        in the ClauseDB through indexed search.
-
-        :rtype: dict of ((str, int), str)
-        """
-        db = self._engine._db
-        inferences = {}
-
-        sf_define_index = db.find(Term('state_fluent', None))
-
-        if sf_define_index is None:
-            return inferences
-
-        sf_define_node = db.get_node(sf_define_index)
-
-        for node_index in sf_define_node.children:
-            node = db.get_node(node_index)
-            node_type = type(node).__name__
-
-            if node_type == 'fact':
-                term = node.args[0]
-                term_signature = (term.functor, term.arity)
-                inferences[term_signature] = 'isf'
-
-            elif node_type == 'clause':
-                head_arg = node.args[0]
-                target_signature = (head_arg.functor, head_arg.arity)
-
-                body_index = node.child
-                body_node = db.get_node(body_index)
-
-                origin_define_index = None
-
-                if type(body_node).__name__ == 'call':
-                    origin_define_index = body_node.defnode
-
-                if origin_define_index is None:
-                    inferences[target_signature] = 'isf'
-                    continue
-
-                origin_define_node = db.get_node(origin_define_index)
-
-                is_ads_origin = False
-
-                if hasattr(origin_define_node, 'children'):
-                    for child_index in origin_define_node.children:
-                        child = db.get_node(child_index)
-
-                        if type(child).__name__ == 'clause':
-                            try:
-                                ad_clause_body = db.get_node(child.child)
-
-                                if type(ad_clause_body).__name__ == 'conj':
-                                    potential_choice_call = db.get_node(ad_clause_body.children[1])
-                                    if type(potential_choice_call).__name__ == 'call':
-                                        choice_node = db.get_node(potential_choice_call.defnode)
-                                        if type(choice_node).__name__ == 'choice':
-                                            is_ads_origin = True
-                                            break
-                            except (IndexError, AttributeError):
-                                pass
-
-                inferences[target_signature] = 'ads' if is_ads_origin else 'isf'
-
-        return inferences
+        static_args = term.args[:-1]
+        return "{}({})".format(term.functor, ','.join(map(str, static_args)))
 
     def state_fluents(self):
         """
@@ -220,7 +205,6 @@ class MDP(object):
         :rtype: list of problog.logic.Term sorted by string representation
         """
         return self.state_schema.get_flat_list()
-
 
     def current_state_fluents(self):
         """
@@ -250,34 +234,39 @@ class MDP(object):
     def structured_transition(self, state, action, cache=None):
         """
         Return the probabilities of next state fluents grouped by factors
-        according to the FluentSchema. This handles both ISF (binary) and
-        ADS (multi-valued) groups correctly for recursive calculation.
-
-        :param state: state vector representation
-        :param action: action vector representation
-        :param cache: caching key
-        :rtype: list of list of (problog.logic.Term, float)
+        according to the FluentSchema. Handles ISF (binary) injection 
+        and ADS (multi-valued) sparse filtering.
         """
-        # 1. Obtener probabilidades
         flat_transitions = self.transition(state, action, cache)
-
-        # 2. Indexar probabilidades para acceso O(1)
-        # Usamos str(term) como clave para garantizar coincidencia exacta
         prob_map = {str(term): prob for term, prob in flat_transitions}
-
+        
         structured_result = []
-
-        # 3. Rellenar la plantilla pre-calculada
+        
         for factor_template in self._next_state_factors:
             group_data = []
-            for term in factor_template:
-                # Buscamos la probabilidad en el mapa del motor
-                # Si no existe, es 0.0
-                p = prob_map.get(str(term), 0.0)
-                group_data.append((term, p))
             
+            # Si el esquema dicta que es un ISF estricto (1 elemento)
+            if len(factor_template) == 1:
+                term = factor_template[0]
+                p_true = prob_map.get(str(term), 0.0)
+                p_false = 1.0 - p_true
+                
+                # Inyección de ramas con masa probabilística válida
+                if p_false > 1e-6:
+                    group_data.append((None, p_false))
+                if p_true > 1e-6:
+                    group_data.append((term, p_true))
+            
+            # Si el esquema dicta que es un grupo ADS (> 1 elemento)
+            else:
+                for term in factor_template:
+                    p = prob_map.get(str(term), 0.0)
+                    # Filtro de matrices dispersas (Sparse filter)
+                    if p > 1e-6:
+                        group_data.append((term, p))
+                        
             structured_result.append(group_data)
-
+            
         return structured_result
 
     def transition(self, state, action, cache=None):
@@ -304,7 +293,6 @@ class MDP(object):
 
         return transition
 
-
     def __transition(self, state, action):
         """
         Return the probabilities of next state fluents given current
@@ -320,7 +308,6 @@ class MDP(object):
         evidence.update(action)
         return self._engine.evaluate(self.__next_state_queries, evidence)
 
-
     def transition_model(self):
         """
         Return the transition model of all valid transitions.
@@ -335,7 +322,6 @@ class MDP(object):
                 probabilities = self.transition(state, action)
                 transitions[(tuple(state.values()), tuple(action.values()))] = probabilities
         return transitions
-
 
     def reward(self, state, action, cache=None):
         """
@@ -360,7 +346,6 @@ class MDP(object):
             self.__reward_cache[cache] = value
 
         return value
-
 
     def __reward(self, state, action):
         """

@@ -2,48 +2,43 @@
  Matrices de Transición P(s'|s, a) por Acción
 ============================================================
 
---- Matriz de Transición para la Acción: [down] ---
-     poa  pob  poc  pod  poe  pof
-poa 0.00 0.00 0.00 1.00 0.00 0.00
-pob 0.00 0.00 0.00 0.00 1.00 0.00
-poc 0.00 0.00 0.00 0.00 0.00 0.00
-pod 0.00 0.00 0.00 0.00 0.00 0.00
-poe 0.00 0.00 0.00 0.00 0.00 0.00
-pof 0.00 0.00 0.00 0.00 0.00 0.00
+--- Matriz de Transición para la Acción: [pub] ---
+        class1  class2  class3  sleep   tv
+class1    0.00    0.00    0.00   0.00 0.00
+class2    0.00    0.00    0.00   0.00 0.00
+class3    0.20    0.40    0.40   0.00 0.00
+sleep     0.00    0.00    0.00   1.00 0.00
+tv        0.00    0.00    0.00   0.00 0.00
 
---- Matriz de Transición para la Acción: [left] ---
-     poa  pob  poc  pod  poe  pof
-poa 0.00 0.00 0.00 0.00 0.00 0.00
-pob 1.00 0.00 0.00 0.00 0.00 0.00
-poc 0.00 0.00 0.00 0.00 0.00 0.00
-pod 0.00 0.00 0.00 0.00 0.00 0.00
-poe 0.00 0.00 0.00 1.00 0.00 0.00
-pof 0.00 0.00 0.00 0.00 1.00 0.00
+--- Matriz de Transición para la Acción: [quit] ---
+        class1  class2  class3  sleep   tv
+class1    0.00    0.00    0.00   0.00 0.00
+class2    0.00    0.00    0.00   0.00 0.00
+class3    0.00    0.00    0.00   0.00 0.00
+sleep     0.00    0.00    0.00   1.00 0.00
+tv        1.00    0.00    0.00   0.00 0.00
 
---- Matriz de Transición para la Acción: [right] ---
-     poa  pob  poc  pod  poe  pof
-poa 0.00 1.00 0.00 0.00 0.00 0.00
-pob 0.00 0.00 1.00 0.00 0.00 0.00
-poc 0.00 0.00 0.00 0.00 0.00 0.00
-pod 0.00 0.00 0.00 0.00 1.00 0.00
-poe 0.00 0.00 0.00 0.00 0.00 1.00
-pof 0.00 0.00 0.00 0.00 0.00 0.00
+--- Matriz de Transición para la Acción: [relax] ---
+        class1  class2  class3  sleep   tv
+class1    0.00    0.00    0.00   0.00 1.00
+class2    0.00    0.00    0.00   0.00 0.00
+class3    0.00    0.00    0.00   0.00 0.00
+sleep     0.00    0.00    0.00   1.00 0.00
+tv        0.00    0.00    0.00   0.00 1.00
 
---- Matriz de Transición para la Acción: [stay] ---
-     poa  pob  poc  pod  poe  pof
-poa 0.00 0.00 0.00 0.00 0.00 0.00
-pob 0.00 0.00 0.00 0.00 0.00 0.00
-poc 0.00 0.00 1.00 0.00 0.00 0.00
-pod 0.00 0.00 0.00 0.00 0.00 0.00
-poe 0.00 0.00 0.00 0.00 0.00 0.00
-pof 0.00 0.00 0.00 0.00 0.00 0.00
+--- Matriz de Transición para la Acción: [sleep] ---
+        class1  class2  class3  sleep   tv
+class1    0.00    0.00    0.00   0.00 0.00
+class2    0.00    0.00    0.00   1.00 0.00
+class3    0.00    0.00    0.00   0.00 0.00
+sleep     0.00    0.00    0.00   1.00 0.00
+tv        0.00    0.00    0.00   0.00 0.00
 
---- Matriz de Transición para la Acción: [up] ---
-     poa  pob  poc  pod  poe  pof
-poa 0.00 0.00 0.00 0.00 0.00 0.00
-pob 0.00 0.00 0.00 0.00 0.00 0.00
-poc 0.00 0.00 0.00 0.00 0.00 0.00
-pod 1.00 0.00 0.00 0.00 0.00 0.00
-poe 0.00 1.00 0.00 0.00 0.00 0.00
-pof 0.00 0.00 1.00 0.00 0.00 0.00
+--- Matriz de Transición para la Acción: [study] ---
+        class1  class2  class3  sleep   tv
+class1    0.00    1.00    0.00   0.00 0.00
+class2    0.00    0.00    1.00   0.00 0.00
+class3    0.00    0.00    0.00   1.00 0.00
+sleep     0.00    0.00    0.00   1.00 0.00
+tv        0.00    0.00    0.00   0.00 0.00
 

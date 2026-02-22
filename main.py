@@ -113,8 +113,8 @@ def show_state_space(schema):
 
 if __name__ == "__main__":
 
-    prog_dir = "tests/model_tests/mitchell_grid.pl"
-    #prog_dir = "tests/model_tests/student_MDP.pl"
+    #prog_dir = "tests/model_tests/mitchell_grid.pl"
+    prog_dir = "tests/model_tests/student_MDP.pl"
     #prog_dir = "tests/model_tests/mobile_robot_j.pl"
 
     #prog_dir = "pruebas/vm1.pl"
@@ -133,7 +133,7 @@ if __name__ == "__main__":
 
     # VALUE ITERATION
     start = time.perf_counter()     
-    V, policy, iterations, Q_table, V_history = solve_model(mdp, 0.9, 0.1)
+    V, policy, Q_table, V_history, iterations = solve_model(mdp, 1, 0.1)
     end = time.perf_counter()
     uptime = end - start
 

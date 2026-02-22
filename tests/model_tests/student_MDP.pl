@@ -1,5 +1,5 @@
 % state fluents
-state_fluent(s(X)) :- v_s(X).
+state_fluent(s(X), ads) :- v_s(X).
 
 %actions
 action(study).

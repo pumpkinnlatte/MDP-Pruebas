@@ -232,19 +232,32 @@ class MDPDebugger(object):
         states = list(StateSpace(mdp.state_schema))
         actions = list(ActionSpace(mdp.actions()))
 
-        def clean_state_name(s_dict):
-            for k, v in s_dict.items():
-                if v == 1:
-                    return str(k).split(',')[0].replace('s(', '')
-            return "unknown"
+        def clean_state_name(state_items):
+            """
+            Extrae el nombre del estado basándose en los fluentes activos.
+            Recibe una lista de tuplas ((Termino, 1/0), ...)
+            """
+            active_terms = []
+            for term, val in state_items:
+                if val == 1:
+                    # Convierte marketed(denis, 0) -> marketed(denis)
+                    clean_term = str(term).rsplit(',', 1)[0]
+                    active_terms.append(clean_term)
+            
+            # Si ningún fluente está en 1 (ej. estado base booleano), retorna 'none'
+            if not active_terms:
+                return "Base_State(0)"
+                
+            # Une múltiples fluentes activos (ej. si hay más de 1 ADS)
+            return " + ".join(active_terms)
 
         def clean_action_name(a_dict):
             for k, v in a_dict.items():
                 if v == 1:
                     return str(k)
-            return "unknown"
+            return "unknown_action"
 
-        row_names = [clean_state_name(s) for s in states]
+        row_names = [clean_state_name(tuple(s.items())) for s in states]
         col_names = [clean_action_name(a) for a in actions]
 
         try:
@@ -254,18 +267,23 @@ class MDPDebugger(object):
                 state_key = tuple(state.items())
                 for j, action in enumerate(actions):
                     action_name = clean_action_name(action)
-                    # Recuperamos el valor Q del diccionario que nos entregó Value Iteration
+                    
+                    # Recuperamos el valor Q del diccionario
                     q_val = q_table.get((state_key, action_name), 0.0)
                     row.append(q_val)
                 matrix.append(row)
 
+            # Para evitar duplicados en los índices si los nombres son largos
             df = pd.DataFrame(matrix, index=row_names, columns=col_names)
 
             with open(filepath, 'w', encoding='utf-8') as f:
                 f.write("============================================================\n")
                 f.write(" Tabla Q Óptima q*(s, a) tras Convergencia\n")
                 f.write("============================================================\n\n")
-                f.write(df.to_string(float_format="{:.2f}".format))
+                
+                # Configuramos Pandas para alinear a la izquierda los nombres
+                pd.set_option('display.colheader_justify', 'center')
+                f.write(df.to_string(float_format="{:.3f}".format, justify='left'))
                 f.write("\n")
 
          

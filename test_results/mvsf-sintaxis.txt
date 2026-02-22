@@ -1,0 +1,280 @@
+% ==============================================================================
+% ESPECIFICACIÓN TÉCNICA: FLUENTES DE ESTADO EN MDP-PROBLOG
+% ==============================================================================
+
+% 1. Declaración de un fluente de estado multivaluado (MVSF / ADS):
+
+%    - Para declarar un fluente de estado se utiliza el predicado state_fluent/1 y state_fluent/2.
+%    - args: 1. Predicado estrictamente con argumentos los cuales definan las propiedades del fluente de estado.
+%            2. Constante que permite definir explícitamente si se desea modelar como booleano o multivaluado (bsf o ads).
+
+%   Ej. Definición por inferencia (Automática):
+
+        state_fluent(semaforo(X)) :- colores(X).
+
+        1/3::colores(rojo);
+        1/3::colores(amarillo);
+        1/3::colores(verde).
+
+%    - Lo que hace que el sistema distinga entre un BSF (Booleano) y un MVSF (Multivaluado) es el ORIGEN.
+%    - Los valores de origen deben derivarse de disyunciones anotadas (nodos choice en la ClauseDB).
+%    - El sistema crea los grupos extrayendo los identificadores del predicado base.
+
+%   Ej. Definición explicita (Manual):
+
+        state_fluent(semaforo(X), ads) :- colores().
+
+        1/3::colores(rojo);
+        1/3::colores(amarillo);
+        1/3::colores(verde).
+
+%   también es valido:
+
+        colores(rojo);
+        colores(amarillo);
+        colores(verde).
+
+%    - Cuando se define explícitamente el tipo de fluente mediante la constante 'ads', actúa el mecanismo de definición explícita.
+%    - En este caso, el origen de los valores del fluente es irrelevante para el motor de inferencia. No importa si eran hechos independientes estáticos o probabilísticos; el sistema los empaquetará en un grupo mutuamente excluyente.
+
+% 1.1 Un requisito para que el fluente se clasifique como multivaluado es que mínimo tenga 2 valores de origen declarados como predicados.
+
+    Ej. Declaración inválida de un MVSF mediante inferencia:
+
+        state_fluent(semaforo(X)) : colores(X).
+
+        colores(verde).
+
+     - Al tener un único valor, el sistema NO DEBE DE PERMITIR la creación del fluente mediante una exepción. El modelo se declara como inválido
+     
+    Ej. Declaración inválida de un MSVF mediante definición explicita:
+
+        state_fluent(semaforo(X), ads) : colores(X).
+
+        colores(verde).
+
+%    - Otro ejemplo inválido (Hardcoding sin dominio):
+
+        state_fluent(semaforo(verde), ads).
+
+%    - Como se puede observar, la única manera de declarar fluentes de estado multivaluados robustos es mediante una regla paramétrica.
+%    - La explicación algorítmica de esto es que los fluentes multivaluados (ADS) requieren matemáticamente de un dominio de opciones para iterar en el sistema Mixed-Radix. Un grupo excluyente de 1 sola opción es una paradoja lógica (es una constante, no una variable estocástica).
+
+% 2. Combinación y flexibilidad en la declaración de fluentes.
+
+%    - Al ser ProbLog un lenguaje bastante flexible, debemos tener cuidado con la forma en la que se utiliza el sistema de reglas.
+%    - El sistema utiliza la "Regla del Último Argumento" para procesar las combinaciones de orígenes lógicos.
+%    - REGLA: En un predicado state_fluent(pred(Arg1, Arg2, ..., ArgN)), los argumentos del 1 al N-1 son tratados como IDENTIFICADORES ESTÁTICOS (Llave de grupo). El argumento N es tratado como el VALOR MUTUABLE (Dominio de la ADS).
+
+%    Ej. Combinación correcta de orígenes (Identificador Estático + Valor Mutuable).
+
+        state_fluent(marketed(X, Y)) :- person(X), marketing_type(Y).
+
+        person(thiago).
+        person(denis).
+        person(fabio).
+        person(liliane).
+
+        1/3::marketing_type(television);
+        1/3::marketing_type(internet);
+        1/3::marketing_type(none).
+
+%    - El ejemplo anterior obtiene como resultado lo siguiente:
+%        1. Un grupo excluyente para cada entidad estática independiente declarada en person(X).
+%        2. Cada grupo puede variar únicamente entre los valores del último argumento marketing_type(Y).
+        
+%    - Resultado en el FactorSpace:
+        Grupo marketed(thiago):  [television, internet, none]
+        Grupo marketed(denis):   [television, internet, none]
+        Grupo marketed(fabio):   [television, internet, none]
+        Grupo marketed(liliane): [television, internet, none]
+
+
+% 2.1 Combinaciones Inválidas y Colapsos Estructurales
+
+%    - ¿Qué sucede si intentamos combinar múltiples orígenes mutuamente excluyentes en una misma regla?
+
+%    Ej. Declaración inválida (Múltiples estados mutuables en un mismo fluente):
+
+        state_fluent(tv_state(X, Y, Z)) :- television(X), condition(Y), power(Z).
+
+        television(one).
+        
+        0.5::condition(good); 0.5::condition(bad).
+        0.5::power(on); 0.5::power(off).
+
+%    - CÓMO FUNCIONA: Aplicando la regla del último argumento, el sistema toma X e Y como la llave estática, y Z como el único valor mutuable.
+%    - RESULTADO:
+        Grupo tv_state(one, good): [on, off]
+        Grupo tv_state(one, bad):  [on, off]
+
+%    - POR QUÉ NO SE DEBE HACER: El sistema ha "clonado" la televisión. Obliga al modelo a tener un estado de energía para cuando está buena, y simultáneamente otro estado de energía para cuando está mala. Destruye la independencia de las variables.
+
+%    - SOLUCIÓN: Separar en reglas distintas: 
+        state_fluent(tv_cond(X,Y)) :- television(X), condition(Y).
+        state_fluent(tv_power(X,Z)) :- television(X), power(Z).
+
+% 2.2 Combinaciones Geométricas mediante Términos Compuestos (Compound Terms)
+
+%    - ¿Qué sucede si mi valor mutuable requiere estrictamente de dos o más parámetros combinados (como una coordenada X, Y)?
+
+%    Ej. Declaración inválida de Coordenadas (Colapso por separación):
+
+        state_fluent(pos(X, Y)) :- coord(X), coord(Y).
+
+%    - RESULTADO: Tomará X como llave y Y como valor. Creará un grupo para X=1, otro para X=2, exigiendo que el robot exista en múltiples columnas a la vez.
+
+%    Ej. Declaración Correcta mediante Empaquetamiento (Compound Term):
+
+        state_fluent(pos(celda(X, Y))) :- coord(X), coord(Y).
+
+%    - CÓMO FUNCIONA: El predicado pos/1 tiene un solo argumento: celda(X,Y). Al no haber argumentos previos (N-1 = 0), la llave de grupo es simplemente "pos". 
+
+%    - RESULTADO ESPERADO: 
+        Grupo pos: [celda(1,1), celda(1,2), celda(2,1), celda(2,2)]
+
+%    - POR QUÉ FUNCIONA: El sistema empaqueta ambos orígenes (X e Y) dentro de un único nodo lógico en el último argumento. Esto garantiza que toda la coordenada bidimensional compita entre sí por la exclusión mutua, permitiendo que el robot ocupe un solo espacio a la vez.
+
+
+% 3. Inferencia Estructural: El Paradigma de Agrupamiento por Cardinalidad
+
+%    - En fluentes paramétricos con N argumentos, existe un problema de explosión combinatoria (2^N) si el motor intenta rastrear en el Abstract Syntax Tree (AST) si cada origen provino de un hecho estático o de una disyunción anotada.
+%    - Para colapsar esta complejidad a O(1), MDP-ProbLog debe abandonar el análisis estático de código y en cambio utilizar la "Inferencia por Cardinalidad" sobre los términos ya aterrizados (grounded).
+
+% 3.1 Restricción Semántica de los Argumentos Identificadores
+%    - REGLA ESTRICTA: Los orígenes lógicos de los argumentos 1 al N-1 DEBEN ser hechos independientes y deterministas. 
+%    - JUSTIFICACIÓN: Las entidades físicas de un MDP (ej. la existencia de un robot o una habitación) no pueden ser probabilísticas. Solo el estado de esas entidades (argumento N) puede someterse a incertidumbre.
+
+% 3.2 El Algoritmo de Inferencia (Resolución del 2^N)
+%    - El motor delega el producto cartesiano al grounding de ProbLog, obteniendo una lista plana de todos los fluentes de estado válidos.
+%    - Se extrae la llave estática (args[:-1]) de cada fluente aterrizado.
+%    - Se agrupan todos los fluentes que comparten la misma llave en un diccionario de listas.
+%    - SE APLICA LA REGLA DE CARDINALIDAD:
+%        * Si la lista de la llave tiene EXACTAMENTE 1 elemento -> Es un Fluente Binario Independiente (ISF).
+%        * Si la lista de la llave tiene 2 O MÁS elementos -> Es una Disyunción Anotada de Estado (ADS).
+
+%    Ej. Aplicación del algoritmo en un fluente complejo de 3 argumentos:
+        state_fluent(sensor(X, Y, Z)) :- habitacion(X), dispositivo(Y), medicion(Z).
+
+        habitacion(sala).
+        habitacion(cocina).
+
+        dispositivo(termometro).
+        dispositivo(humo).
+
+        1/3::medicion(alto);
+        1/3::medicion(bajo);
+        1/3::medicion(none).
+
+%    - PASO 1: Lista plana aterrizada devuelta por ProbLog (El Producto Cartesiano):
+        sensor(sala, termometro, alto)
+        sensor(sala, termometro, bajo)
+        sensor(sala, termometro, none)
+
+        sensor(sala, humo, alto)
+        sensor(sala, humo, bajo)
+        sensor(sala, humo, none)
+
+        sensor(cocina, termometro, alto)
+        sensor(cocina, termometro, bajo)
+        sensor(cocina, termometro, none)
+
+        sensor(cocina, humo, alto)
+        sensor(cocina, humo, bajo)
+        sensor(cocina, humo, none)
+
+%    - PASO 2: Agrupamiento por llave estática (Extrayendo args[:-1]):
+        Llave: sensor(sala, termometro)   -> Valores: [alto, bajo, none]
+        Llave: sensor(sala, humo)         -> Valores: [alto, bajo, none]
+        Llave: sensor(cocina, termometro) -> Valores: [alto, bajo, none]
+        Llave: sensor(cocina, humo)       -> Valores: [alto, bajo, none]
+
+%    - PASO 3: Inferencia Automática (Regla de Cardinalidad):
+        sensor(sala, termometro)   -> Cardinalidad = 3 -> Se infiere como Grupo ADS.
+        sensor(sala, humo)         -> Cardinalidad = 3 -> Se infiere como Grupo ADS.
+        sensor(cocina, termometro) -> Cardinalidad = 3 -> Se infiere como Grupo ADS.
+        sensor(cocina, humo)       -> Cardinalidad = 3 -> Se infiere como Grupo ADS.
+
+%    - CONCLUSIÓN DEL EJEMPLO: 
+%      Aunque el predicado tiene 3 argumentos y múltiples orígenes, el motor de MDP-ProbLog 
+%      jamás tuvo que analizar el código fuente para saber si "medicion" era probabilística 
+%      o si "habitacion" era estática. Simplemente agrupó los datos resultantes por su llave 
+%      (los primeros N-1 argumentos) y contó sus elementos. La complejidad de inferir el 
+%      tipo de fluente se reduce a una simple lectura de longitud de listas (O(1) por grupo).
+
+%    Ej. Aplicación del algoritmo en un fluente que se infiere como Binario (ISF):
+        state_fluent(alarma(X, Y)) :- zona(X), estado_alarma(Y).
+
+        zona(norte).
+        zona(sur).
+
+        % El estado solo tiene una única opción declarada (origen probabilístico o determinista)
+        0.1::estado_alarma(activada).
+
+%    - PASO 1: Lista plana aterrizada devuelta por ProbLog (El Producto Cartesiano):
+        alarma(norte, activada)
+        alarma(sur, activada)
+
+%    - PASO 2: Agrupamiento por llave estática (Extrayendo args[:-1]):
+        Llave: alarma(norte) -> Valores: [activada]
+        Llave: alarma(sur)   -> Valores: [activada]
+
+%    - PASO 3: Inferencia Automática (Regla de Cardinalidad):
+        alarma(norte) -> Cardinalidad = 1 -> Se infiere como Fluente Binario Independiente (ISF).
+        alarma(sur)   -> Cardinalidad = 1 -> Se infiere como Fluente Binario Independiente (ISF).
+
+%    - CONCLUSIÓN DEL EJEMPLO: 
+%      Como cada llave estática solo tiene asociado un (1) único valor posible en su dominio, 
+%      el motor matemático deduce que no existen opciones categóricas que compitan entre sí por la 
+%      exclusión mutua. En consecuencia, el sistema procesa la "activación" como una variable de 
+%      Bernoulli tradicional (Verdadero/Falso), donde la ausencia del término durante la inferencia 
+%      se interpretará implícitamente como el estado Falso (ej. la alarma está apagada).
+
+
+% 3.3 Definición Explícita con Múltiples Argumentos (El modificador 'ads')
+%    - ¿Qué sucede si el usuario utiliza múltiples argumentos pero fuerza la clasificación categórica mediante el predicado state_fluent/2?
+%    - El algoritmo de extracción sigue siendo el mismo (agrupamiento por la llave estática args[:-1]).
+%    - La diferencia radica en la Validación: el sistema ignorará por completo el origen de los datos (no exigirá que provengan de disyunciones anotadas), PERO exigirá estrictamente que la cardinalidad final del grupo sea mayor o igual a 2.
+
+%    Ej. Declaración explícita VÁLIDA (Orígenes estáticos forzados a grupo categórico):
+        state_fluent(clima(X, Y, Z), ads) :- region(X), mes(Y), tipo(Z).
+
+        region(norte).
+        
+        mes(enero).
+
+        % Observar que son hechos estáticos, no disyunciones (no hay X::Y)
+        tipo(soleado).
+        tipo(lluvioso).
+
+%    - PASO 1: Lista plana aterrizada devuelta por ProbLog:
+        clima(norte, enero, soleado)
+        clima(norte, enero, lluvioso)
+
+%    - PASO 2: Agrupamiento por llave estática (Extrayendo args[:-1]):
+        Llave: clima(norte, enero) -> Valores: [soleado, lluvioso]
+
+%    - PASO 3: Validación Explícita:
+        clima(norte, enero) -> Cardinalidad = 2 -> Cumple con la restricción matemática de la etiqueta 'ads'. El sistema lo acepta y empaqueta el grupo.
+
+%    Ej. Declaración explícita INVÁLIDA (Colapso por cardinalidad insuficiente):
+        state_fluent(clima(X, Y, Z), ads) :- region(X), mes(Y), tipo(Z).
+
+        region(sur).
+        mes(febrero).
+
+        tipo(nublado). % Única opción declarada
+
+%    - PASO 1 y 2 (Agrupamiento):
+        Llave: clima(sur, febrero) -> Valores: [nublado]
+
+%    - PASO 3: Validación Explícita:
+        clima(sur, febrero) -> Cardinalidad = 1.
+
+%    - CONCLUSIÓN DEL EJEMPLO: 
+%      ¡EXCEPCIÓN! Aunque el usuario forzó la declaración usando la etiqueta 'ads', 
+%      la matemática de bases mixtas (Mixed-Radix) requiere estrictamente una base 
+%      b >= 2 para poder iterar un grupo mutuamente excluyente. El motor de MDP-ProbLog 
+%      prioriza la integridad de la Ecuación de Bellman sobre la etiqueta manual del usuario. 
+%      Al detectar un grupo etiquetado como 'ads' con un solo elemento, el motor rechaza 
+%      el modelo y detiene la compilación para evitar un colapso algorítmico posterior.

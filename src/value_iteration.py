@@ -24,7 +24,10 @@ class ValueIteration(object):
     convergence is achieved for the given error epsilon for the
     infinite-horizon MDP with discount factor gamma.
 
-    Refactored to support Mixed-Radix Indexing and Annotated Disjunctions (ADS).
+    The implementation operates on integer-indexed state representations using
+    a mixed-radix encoding defined by the :class:`~mdpproblog.fluent.FluentSchema`.
+    Both Boolean State Fluents (BSF, binary) and Annotated Disjunction groups
+    (ADS, multi-valued) are handled uniformly through the same Bellman backup.
 
     :param mdp: MDP representation
     :type mdp: mdpproblog.MDP
@@ -51,44 +54,38 @@ class ValueIteration(object):
         Q_table_internal = {}
         V_history = {}
 
-        states  = StateSpace(self._mdp.state_schema)
+        states = StateSpace(self._mdp.state_schema)
         actions = ActionSpace(self._mdp.actions())
-
-        # Distancias de cada fluente a su posición en el vector de estado
         strides = self._mdp.state_schema.strides
 
         iteration = 0
         while True:
             iteration += 1            
             max_residual = -sys.maxsize
-            for (i, state) in enumerate(states):
 
+            for (i, state) in enumerate(states):
                 max_value = -sys.maxsize
                 greedy_action = None
            
                 for (j, action) in enumerate(actions):
+                    cache_key = (i, j)  # (state_index, action_index)
 
-                    # Obtengo una lista de factores: [[(termino, prob), ...]]
-                    transition_groups = self._mdp.structured_transition(state, action, (i, j))
-                    
-                    reward = self._mdp.reward(state, action, (i, j))           
-
-                    # Expected value con strides
-                    expected_v = self.__expected_value(transition_groups, strides, V)  
+                    transition_groups = self._mdp.structured_transition(state, action, cache_key)
+                    reward = self._mdp.reward(state, action, cache_key)
+                    expected_v = self.__expected_value(transition_groups, strides, V)
 
                     Q = reward + gamma * expected_v
-
                     Q_table_internal[(i, j)] = Q 
 
                     if Q >= max_value:                      
-                        max_value = Q                       # Actualiza el valor máximo  
-                        greedy_action = actions[j]          # Actualiza la acción greedy 
+                        max_value = Q                      
+                        greedy_action = actions[j]        
 
                 residual = abs(V.get(i, 0) - max_value)
                 max_residual = max(max_residual, residual)  
                 
-                V[i] = max_value                            # Actualiza el valor del estado 
-                policy[i] = greedy_action                   # Asigna como acción óptima la acción greedy encontrada
+                V[i] = max_value                            
+                policy[i] = greedy_action                  
 
                 V_history[iteration] = V.copy()
 
@@ -96,43 +93,7 @@ class ValueIteration(object):
             if max_residual <= 2 * epsilon * (1 - gamma) / gamma:
                 break
 
-        V_final = {}
-        policy_final = {}
-        
-        for i in range(len(states)):
-            
-            state_obj = states[i]
-            state_key = tuple(state_obj.items())
-            
-            V_final[state_key] = V[i]
-    
-            raw_action = policy.get(i)
-            clean_action = None
-            
-            if raw_action is not None:
-                for term, val in raw_action.items():
-                    if val == 1:
-                        clean_action = term
-                        break
-            
-            policy_final[state_key] = clean_action
-
-        Q_final = {}
-        for (i, j), q_val in Q_table_internal.items():
-            state_obj = states[i]
-            state_key = tuple(state_obj.items())
-
-            # Extracción limpia de la acción
-            raw_action = actions[j]
-            clean_action = None
-            for term, val in raw_action.items():
-                if val == 1:
-                    clean_action = str(term)
-                    break
-
-            Q_final[(state_key, clean_action)] = q_val
-
-        return V_final, policy_final, iteration, Q_final, V_history
+        return *self.__build_output(V, policy, Q_table_internal, states, actions), V_history, iteration
 
 
     def __expected_value(self, transition_groups, strides, V, k=0, current_index=0, joint=1.0):
@@ -148,23 +109,65 @@ class ValueIteration(object):
         """
 
         if len(transition_groups) == k:
-            return joint * V.get(current_index, 0.0) #retorna el expected value para estados finales
+            return joint * V.get(current_index, 0.0)
 
         factor = transition_groups[k]
         stride = strides[k]
-
-        if(len(factor) == 1):
-            term, p_true = factor[0]
-            options = [(None, 1.0 - p_true), (term, p_true)]
-        else:
-            options = factor
-
         expected_sum = 0.0
         
-        for val, (term, prob) in enumerate(options):
-            if abs(prob - 0.0) <= 1e-06: # Si la probabilidad es 0, no se expande esa rama
-                continue
-            expected_sum += self.__expected_value( transition_groups, strides, V, k + 1, current_index + val * stride, joint * prob)
+        for term, prob in factor:
+            val = self._mdp.state_schema.get_local_index(k, term) 
+            expected_sum += self.__expected_value(transition_groups, strides, V, k + 1, current_index + val * stride, joint * prob)
 
-        return expected_sum # retorna el expected value for para la rama actual
+        return expected_sum
+
+    def __build_output(self, V, policy,Q_table_internal,  states, actions):
+        """
+        Convert the integer-indexed value function, policy, and Q-table to readable form.
+
+        :param V: integer-indexed value function
+        :type V: dict of (int, float)
+        :param policy: integer-indexed greedy policy
+        :type policy: dict of (int, collections.OrderedDict)
+        :param states: state space iterator
+        :type states: mdpproblog.fluent.StateSpace
+        :param Q_table_internal: integer-indexed Q-values
+        :type Q_table_internal: dict of ((int, int), float)
+        :param actions: action space iterator
+        :type actions: mdpproblog.fluent.ActionSpace
+        :returns: formatted V_final, policy_final, and Q_final
+        :rtype: tuple(dict, dict, dict)
+        """
+        V_final = {}
+        policy_final = {}
+        Q_final = {}
+
+        for i in range(len(states)):
+            state_key = tuple(states[i].items())
+
+            V_final[state_key] = V.get(i, 0.0)
+
+            raw_action = policy.get(i)
+            clean_action = None
+            if raw_action is not None:
+                for term, val in raw_action.items():
+                    if val == 1:
+                        clean_action = term
+                        break
+
+            policy_final[state_key] = clean_action
+
+        for (i, j), q_val in Q_table_internal.items():
+            state_key = tuple(states[i].items())
+
+            raw_action = actions[j]
+            clean_action = None
+            for term, val in raw_action.items():
+                if val == 1:
+                    clean_action = str(term)
+                    break
+
+            Q_final[(state_key, clean_action)] = q_val
+
+        return V_final, policy_final, Q_final
         
