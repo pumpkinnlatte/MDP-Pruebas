@@ -2,3 +2,4 @@ NOTAS-OPTIMIZACION
 .venv/
 __pycache__/
 pruebas
+src/debug

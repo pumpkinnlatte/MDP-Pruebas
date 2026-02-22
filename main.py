@@ -114,8 +114,10 @@ def show_state_space(schema):
 if __name__ == "__main__":
 
     #prog_dir = "tests/model_tests/mitchell_grid.pl"
-    prog_dir = "tests/model_tests/student_MDP.pl"
+    #prog_dir = "tests/model_tests/student_MDP.pl"
     #prog_dir = "tests/model_tests/mobile_robot_j.pl"
+
+    prog_dir = "tests/ads_tests/ads_case_01.pl"
 
     #prog_dir = "pruebas/vm1.pl"
 

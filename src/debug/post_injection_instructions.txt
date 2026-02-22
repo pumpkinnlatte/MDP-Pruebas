@@ -1,109 +1,36 @@
 === MDP-ProbLog Instructions Table ===
-Timestamp: 2026-02-22 00:28:57
-Total Nodes: 296
+Timestamp: 2026-02-22 15:16:06
+Total Nodes: 73
 ============================================================
 
 ID     | Instruction / Content
 ------------------------------------------------------------
 0      | _builtin_forall(V_0,V_1) :- \+(call(V_0), \+call(V_1))
-1      | state_fluent(s(V_0),ads) :- v_s(V_0)
-2      | action(study)
-3      | action(sleep)
-4      | action(relax)
-5      | action(quit)
-6      | action(pub)
-7      | utility(study_class1,-2)
-8      | utility(study_class2,-2)
-9      | utility(study_class3,10)
-10     | utility(class3_pub,1)
-11     | utility(class1_relax,-1)
-12     | utility(tv_relax,-1)
-13     | utility(class2_sleep,0)
-14     | study_class1 :- s(class1,0), study
-15     | study_class2 :- s(class2,0), study
-16     | study_class3 :- s(class3,0), study
-17     | class1_relax :- s(class1,0), relax
-18     | class2_sleep :- s(class2,0), sleep
-19     | class3_pub :- s(class3,0), pub
-20     | tv_relax :- s(tv,0), relax
-21     | tv_quit :- s(tv,0), quit
-22     | body_75(72,s(class2,1)) :- s(class1,0), study
-23     | 1.0::choice(72,0,s(class2,1))
-24     | s(class2,1) :- body_75(72,s(class2,1)), choice(72,0,s(class2,1))
-25     | body_85(82,s(tv,1)) :- s(class1,0), relax
-26     | 1.0::choice(82,0,s(tv,1))
-27     | s(tv,1) :- body_85(82,s(tv,1)), choice(82,0,s(tv,1))
-28     | body_95(92,s(class3,1)) :- s(class2,0), study
-29     | 1.0::choice(92,0,s(class3,1))
-30     | s(class3,1) :- body_95(92,s(class3,1)), choice(92,0,s(class3,1))
-31     | body_105(102,s(sleep,1)) :- s(class2,0), sleep
-32     | 1.0::choice(102,0,s(sleep,1))
-33     | s(sleep,1) :- body_105(102,s(sleep,1)), choice(102,0,s(sleep,1))
-34     | body_115(112,s(sleep,1)) :- s(class3,0), study
-35     | 1.0::choice(112,0,s(sleep,1))
-36     | s(sleep,1) :- body_115(112,s(sleep,1)), choice(112,0,s(sleep,1))
-37     | body_125(122,multi) :- s(class3,0), pub
-38     | 0.2::choice(122,0,s(class1,1))
-39     | s(class1,1) :- body_125(122,multi), choice(122,0,s(class1,1))
-40     | 0.4::choice(122,1,s(class2,1))
-41     | s(class2,1) :- body_125(122,multi), choice(122,1,s(class2,1))
-42     | 0.4::choice(122,2,s(class3,1))
-43     | s(class3,1) :- body_125(122,multi), choice(122,2,s(class3,1))
-44     | body_145(142,s(tv,1)) :- s(tv,0), relax
-45     | 1.0::choice(142,0,s(tv,1))
-46     | s(tv,1) :- body_145(142,s(tv,1)), choice(142,0,s(tv,1))
-47     | body_155(152,s(class1,1)) :- s(tv,0), quit
-48     | 1.0::choice(152,0,s(class1,1))
-49     | s(class1,1) :- body_155(152,s(class1,1)), choice(152,0,s(class1,1))
-50     | body_165(162,s(sleep,1)) :- s(sleep,0), study
-51     | 1.0::choice(162,0,s(sleep,1))
-52     | s(sleep,1) :- body_165(162,s(sleep,1)), choice(162,0,s(sleep,1))
-53     | body_175(172,s(sleep,1)) :- s(sleep,0), quit
-54     | 1.0::choice(172,0,s(sleep,1))
-55     | s(sleep,1) :- body_175(172,s(sleep,1)), choice(172,0,s(sleep,1))
-56     | body_185(182,s(sleep,1)) :- s(sleep,0), relax
-57     | 1.0::choice(182,0,s(sleep,1))
-58     | s(sleep,1) :- body_185(182,s(sleep,1)), choice(182,0,s(sleep,1))
-59     | body_195(192,s(sleep,1)) :- s(sleep,0), sleep
-60     | 1.0::choice(192,0,s(sleep,1))
-61     | s(sleep,1) :- body_195(192,s(sleep,1)), choice(192,0,s(sleep,1))
-62     | body_205(202,s(sleep,1)) :- s(sleep,0), pub
-63     | 1.0::choice(202,0,s(sleep,1))
-64     | s(sleep,1) :- body_205(202,s(sleep,1)), choice(202,0,s(sleep,1))
-65     | body_213(212,multi) :- true
-66     | 1/5::choice(212,0,v_s(class1))
-67     | v_s(class1) :- body_213(212,multi), choice(212,0,v_s(class1))
-68     | 1/5::choice(212,1,v_s(class2))
-69     | v_s(class2) :- body_213(212,multi), choice(212,1,v_s(class2))
-70     | 1/5::choice(212,2,v_s(class3))
-71     | v_s(class3) :- body_213(212,multi), choice(212,2,v_s(class3))
-72     | 1/5::choice(212,3,v_s(tv))
-73     | v_s(tv) :- body_213(212,multi), choice(212,3,v_s(tv))
-74     | 1/5::choice(212,4,v_s(sleep))
-75     | v_s(sleep) :- body_213(212,multi), choice(212,4,v_s(sleep))
-76     | body_241(240,multi) :- true
-77     | 0.2::choice(240,0,s(class1,0))
-78     | s(class1,0) :- body_241(240,multi), choice(240,0,s(class1,0))
-79     | 0.2::choice(240,1,s(class2,0))
-80     | s(class2,0) :- body_241(240,multi), choice(240,1,s(class2,0))
-81     | 0.2::choice(240,2,s(class3,0))
-82     | s(class3,0) :- body_241(240,multi), choice(240,2,s(class3,0))
-83     | 0.2::choice(240,3,s(sleep,0))
-84     | s(sleep,0) :- body_241(240,multi), choice(240,3,s(sleep,0))
-85     | 0.2::choice(240,4,s(tv,0))
-86     | s(tv,0) :- body_241(240,multi), choice(240,4,s(tv,0))
-87     | body_269(268,multi) :- true
-88     | 0.2::choice(268,0,pub)
-89     | pub :- body_269(268,multi), choice(268,0,pub)
-90     | 0.2::choice(268,1,quit)
-91     | quit :- body_269(268,multi), choice(268,1,quit)
-92     | 0.2::choice(268,2,relax)
-93     | relax :- body_269(268,multi), choice(268,2,relax)
-94     | 0.2::choice(268,3,sleep)
-95     | sleep :- body_269(268,multi), choice(268,3,sleep)
-96     | 0.2::choice(268,4,study)
-97     | study :- body_269(268,multi), choice(268,4,study)
-98     | mutual_exclusive([choice(122,0,s(class1,1)), choice(122,1,s(class2,1)), choice(122,2,s(class3,1))])
-99     | mutual_exclusive([choice(212,0,v_s(class1)), choice(212,1,v_s(class2)), choice(212,2,v_s(class3)), choice(212,3,v_s(tv)), choice(212,4,v_s(sleep))])
-100    | mutual_exclusive([choice(240,0,s(class1,0)), choice(240,1,s(class2,0)), choice(240,2,s(class3,0)), choice(240,3,s(sleep,0)), choice(240,4,s(tv,0))])
-101    | mutual_exclusive([choice(268,0,pub), choice(268,1,quit), choice(268,2,relax), choice(268,3,sleep), choice(268,4,study)])
+1      | state_fluent(defectuoso)
+2      | state_fluent(marketed(V_0,V_1)) :- person(V_0), mtype(V_1)
+3      | person(thiago)
+4      | person(denis)
+5      | body_19(18,multi) :- true
+6      | 1/2::choice(18,0,mtype(tv))
+7      | mtype(tv) :- body_19(18,multi), choice(18,0,mtype(tv))
+8      | 1/2::choice(18,1,mtype(internet))
+9      | mtype(internet) :- body_19(18,multi), choice(18,1,mtype(internet))
+10     | action(noop)
+11     | utility(noop,0)
+12     | 0.5::defectuoso(0)
+13     | body_38(37,multi) :- true
+14     | 0.5::choice(37,0,marketed(denis,internet,0))
+15     | marketed(denis,internet,0) :- body_38(37,multi), choice(37,0,marketed(denis,internet,0))
+16     | 0.5::choice(37,1,marketed(denis,tv,0))
+17     | marketed(denis,tv,0) :- body_38(37,multi), choice(37,1,marketed(denis,tv,0))
+18     | body_52(51,multi) :- true
+19     | 0.5::choice(51,0,marketed(thiago,internet,0))
+20     | marketed(thiago,internet,0) :- body_52(51,multi), choice(51,0,marketed(thiago,internet,0))
+21     | 0.5::choice(51,1,marketed(thiago,tv,0))
+22     | marketed(thiago,tv,0) :- body_52(51,multi), choice(51,1,marketed(thiago,tv,0))
+23     | body_65(64,noop) :- true
+24     | 1.0::choice(64,0,noop)
+25     | noop :- body_65(64,noop), choice(64,0,noop)
+26     | mutual_exclusive([choice(18,0,mtype(tv)), choice(18,1,mtype(internet))])
+27     | mutual_exclusive([choice(37,0,marketed(denis,internet,0)), choice(37,1,marketed(denis,tv,0))])
+28     | mutual_exclusive([choice(51,0,marketed(thiago,internet,0)), choice(51,1,marketed(thiago,tv,0))])
