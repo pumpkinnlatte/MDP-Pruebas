@@ -27,7 +27,7 @@ class Engine(object):
         :type declaration_type: str
         :rtype: list of problog.logic.Term
         """
-        return [t[0] for t in self._engine.query(self._db, Term(declaration_type, None))] #ProbLog. query
+        return [t[0] for t in self._engine.query(self._db, Term(declaration_type, None))] #ProbLog.
 
     #Usado para obtener los valores asignados de un cierto tipo con aridad 2
     def assignments(self, assignment_type):
@@ -40,18 +40,27 @@ class Engine(object):
         """
         return dict(self._engine.query(self._db, Term(assignment_type, None, None)))
 
-        
-    # Realiza el grounding de un programa respecto a ciertas consultas dadas
-    def relevant_ground(self, queries):
-        """
-        Create ground program with respect to `queries`.
+    # ClauseDB inspection
 
-        :param queries: list of predicates
-        :type queries: list of problog.logic.Term
+    def get_instructions_table(self):
         """
-        self._gp = self._engine.ground_all(self._db, queries=queries)
+        Return the table of instructions separated by instruction type
+        as described in problog.engine.ClauseDB.
 
-    #Anade un hecho probabilístico a la base de conocimiento
+        :rtype: dict of (str, list of (node,namedtuple))
+        """
+        instructions = {}
+        for node, instruction in enumerate(self._db._ClauseDB__nodes):
+            instruction_type = str(instruction)
+            instruction_type = instruction_type[:instruction_type.find('(')]
+            if instruction_type not in instructions:
+                instructions[instruction_type] = []
+            assert(self._db.get_node(node) == instruction)  # sanity check
+            instructions[instruction_type].append((node, instruction))
+        return instructions
+
+    # ClauseDB injection — facts and rules
+
     def add_fact(self, term, probability=None):
         """
         Add a new `term` with a given `probability` to the program database.
@@ -65,29 +74,80 @@ class Engine(object):
         """
         return self._db.add_fact(term.with_probability(Constant(probability)))
 
-    #
-    def compile(self, terms=[]):
-
-        """ 
-        Crea una base de conocimiento compilada a partir de un programa aterrizado.
-        Retorna una distribución de `terms` a nodos en la base de conocimiento compilada.
+    def get_fact(self, node):
         """
+        Return the fact in the table of instructions corresponding to `node`.
 
+        :param node: identifier of fact in table of instructions
+        :type node: int
+        :rtype: problog.engine.fact
         """
-        Create compiled knowledge database from ground program.
-        Return mapping of `terms` to nodes in the compiled knowledge database.
+        fact = self._db.get_node(node)
+        if not str(fact).startswith('fact'):
+            raise IndexError('Node `%d` is not a fact.' % node)
+        return fact
 
-        :param terms: list of predicates
-        :type terms: list of problog.logic.Term
-        :rtype: dict of (problog.logic.Term, int)
+    def add_rule(self, head, body):
         """
-        self._knowledge = get_evaluatable(None).create_from(self._gp)
-        term2node = {}
-        for term in terms:
-            term2node[term] = self._knowledge.get_node_by_name(term)
-        return term2node
+        Add a new rule defined by a `head` and `body` arguments
+        to the program database. Return the corresponding node number.
 
-    # Anade una disyunción anotada a la base de conocimiento
+        :param head: a predicate
+        :type head: problog.logic.Term
+        :param body: a list of literals
+        :type body: list of problog.logic.Term or problog.logic.Not
+        :rtype: int
+        """
+        b = body[0]
+        for term in body[1:]:
+            b = b & term
+        return self._db.add_clause(head << b)
+
+    def get_rule(self, node):
+        """
+        Return the rule from the ClauseDB corresponding to `node`.
+
+        :param node: identifier of rule in table of instructions
+        :type node: int
+        :rtype: problog.engine.clause
+        """
+        rule = self._db.get_node(node)
+        if not str(rule).startswith('clause'):
+            raise IndexError('Node `%d` is not a rule.' % node)
+        return rule
+
+    # ClauseDB injection — utility assignments
+
+    def add_assignment(self, term, value):
+        """
+        Add a new utility assignment of `value` to `term` in the program database.
+        Return the corresponding node number.
+
+        :param term: a predicate
+        :type term: problog.logic.Term
+        :param value: a numeric value
+        :type value: float
+        :rtype: int
+        """
+        args = (term.with_probability(None), Constant(1.0 * value))
+        utility = Term('utility', *args)
+        return self._db.add_fact(utility)
+
+    def get_assignment(self, node):
+        """
+        Return the assignment from the ClauseDB corresponding to `node`.
+
+        :param node: identifier of assignment in table of instructions
+        :type node: int
+        :rtype: pair of (problog.logic.Term, problog.logic.Constant)
+        """
+        fact = self._db.get_node(node)
+        if not (str(fact).startswith('fact') and fact.functor == 'utility'):
+            raise IndexError('Node `%d` is not an assignment.' % node)
+        return (fact.args[0], fact.args[1])
+
+    # ClauseDB injection — annotated disjunctions
+
     def add_annotated_disjunction(self, facts, probabilities):
         """
         Add a new annotated disjunction to the program database from
@@ -118,8 +178,6 @@ class Engine(object):
                     nodes.append(node)
         return nodes
 
-    
-    # Para obtener las disyunciones anotadas, se buscan los nodos 'choice' en la tabla de instrucciones
     def get_annotated_disjunction(self, nodes):
         """
         Return the list of choice nodes in the table of instructions
@@ -134,17 +192,96 @@ class Engine(object):
             if not str(choice).startswith('choice'):
                 raise IndexError('Node `%d` is not a choice node.' % choice)
         return choices
+  
+    def relevant_ground(self, queries):
+        """
+        Create ground program with respect to `queries`.
 
-    # Calcula las probabilidades de las consultas dadas un conjunto de evidencias
+        :param queries: list of predicates
+        :type queries: list of problog.logic.Term
+        """
+        self._gp = self._engine.ground_all(self._db, queries=queries)
+    
+    def compile(self, terms=[]):
+
+        """ 
+        Crea una base de conocimiento compilada a partir de un programa aterrizado.
+        Retorna una distribución de `terms` a nodos en la base de conocimiento compilada.
+        """
+
+        """
+        Create compiled knowledge database from ground program.
+        Return mapping of `terms` to nodes in the compiled knowledge database.
+
+        :param terms: list of predicates
+        :type terms: list of problog.logic.Term
+        :rtype: dict of (problog.logic.Term, int)
+        """
+        self._knowledge = get_evaluatable(None).create_from(self._gp)
+        term2node = {}
+        for term in terms:
+            term2node[term] = self._knowledge.get_node_by_name(term)
+        return term2node
+
     def evaluate(self, queries, evidence):
         """
-        Compute probabilities of `queries` given `evidence`.
+        Compute probabilities of `queries` given `a`.
 
         :param queries: mapping of predicates to nodes
         :type queries: dict of (problog.logic.Term, int)
         :param evidence: mapping of predicate and evidence weight
-        :type evidence: dict of (problog.logic.Term, int)
-        :rtype: list of (problog.logic.Term, float)
+        :type evidence: dictionary of (problog.logic.Term, {0, 1})
+        :rtype: list of (problog.logic.Term, [0.0, 1.0])
         """
         evaluator = self._knowledge.get_evaluator(semiring=None, evidence=None, weights=evidence)
-        return [(query, evaluator.evaluate(queries[query])) for query in sorted(queries, key=str)]
+
+        return [ (query, evaluator.evaluate(queries[query])) for query in sorted(queries, key=str) ]
+
+    # Fluent inference
+
+    def get_ads_vocabulary(self):
+        """
+        Scans the ClauseDB extracting the vocabulary of values generated strictly by 
+        Annotated Disjunctions. It achieves this by first finding all 'choice' IDs 
+        that belong to a 'mutual_exclusive' constraint, and then extracting the 
+        arguments ONLY from those verified AD nodes.
+        """
+        import re
+        ad_origin_ids = set()
+        vocabulary = set()
+        
+        # FASE 1: Identificar los IDs de los choices que SÍ pertenecen a una Disyunción Anotada
+        # iter_raw() nos permite ver las restricciones lógicas generadas al final de la compilación
+        for node in self._db.iter_raw():
+            if str(node).startswith('mutual_exclusive'):
+                # Extraemos el ID de origen de la AD. 
+                # Ejemplo: de choice(19, 0, values(t)) extrae el '19'
+                matches = re.findall(r'choice\((\d+),', str(node))
+                for match in matches:
+                    ad_origin_ids.add(int(match))
+                    
+        # FASE 2: Extraer el vocabulario ÚNICAMENTE de los choices verificados
+        # Iteramos sobre los objetos nativos de la base de datos
+        for node in self._db._ClauseDB__nodes:
+            node_type = type(node).__name__
+            
+            if node_type == 'choice':
+                try:
+                    # node.functor es el objeto Term: choice(ID, Index, Fact)
+                    origin_id = int(node.functor.args[0])
+                    
+                    # Filtro Estricto: ¿Pertenece este choice a un grupo mutuamente excluyente?
+                    if origin_id in ad_origin_ids:
+                        fact_term = node.functor.args[2]
+                        
+                        # Extraemos los argumentos internos (ej. 't' de values(t))
+                        if hasattr(fact_term, 'args') and fact_term.args:
+                            for arg in fact_term.args:
+                                vocabulary.add(str(arg))
+                        else:
+                            # Si es una constante sin argumentos (ej. 1/2::television)
+                            vocabulary.add(str(fact_term))
+                except (IndexError, AttributeError, ValueError):
+                    pass
+                    
+        return vocabulary

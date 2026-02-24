@@ -1,0 +1,44 @@
+============================================================
+ Matrices de Transición P(s'|s, a) por Acción
+============================================================
+
+--- Matriz de Transición para la Acción: [pub] ---
+           s(class1)  s(class2)  s(class3)  s(sleep)  s(tv)
+s(class1)       0.00       0.00       0.00      0.00   0.00
+s(class2)       0.00       0.00       0.00      0.00   0.00
+s(class3)       1.00       0.00       0.00      0.00   0.00
+s(sleep)        1.00       0.00       0.00      0.00   0.00
+s(tv)           0.00       0.00       0.00      0.00   0.00
+
+--- Matriz de Transición para la Acción: [quit] ---
+           s(class1)  s(class2)  s(class3)  s(sleep)  s(tv)
+s(class1)       0.00       0.00       0.00      0.00   0.00
+s(class2)       0.00       0.00       0.00      0.00   0.00
+s(class3)       0.00       0.00       0.00      0.00   0.00
+s(sleep)        1.00       0.00       0.00      0.00   0.00
+s(tv)           1.00       0.00       0.00      0.00   0.00
+
+--- Matriz de Transición para la Acción: [relax] ---
+           s(class1)  s(class2)  s(class3)  s(sleep)  s(tv)
+s(class1)       1.00       0.00       0.00      0.00   0.00
+s(class2)       0.00       0.00       0.00      0.00   0.00
+s(class3)       0.00       0.00       0.00      0.00   0.00
+s(sleep)        1.00       0.00       0.00      0.00   0.00
+s(tv)           1.00       0.00       0.00      0.00   0.00
+
+--- Matriz de Transición para la Acción: [sleep] ---
+           s(class1)  s(class2)  s(class3)  s(sleep)  s(tv)
+s(class1)       0.00       0.00       0.00      0.00   0.00
+s(class2)       1.00       0.00       0.00      0.00   0.00
+s(class3)       0.00       0.00       0.00      0.00   0.00
+s(sleep)        1.00       0.00       0.00      0.00   0.00
+s(tv)           0.00       0.00       0.00      0.00   0.00
+
+--- Matriz de Transición para la Acción: [study] ---
+           s(class1)  s(class2)  s(class3)  s(sleep)  s(tv)
+s(class1)       1.00       0.00       0.00      0.00   0.00
+s(class2)       1.00       0.00       0.00      0.00   0.00
+s(class3)       1.00       0.00       0.00      0.00   0.00
+s(sleep)        1.00       0.00       0.00      0.00   0.00
+s(tv)           0.00       0.00       0.00      0.00   0.00
+
