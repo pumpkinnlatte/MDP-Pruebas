@@ -76,7 +76,7 @@ class FluentSchema(object):
         self.__strides_cache = None
 
     
-    def add_isf(self, term):
+    def add_bsf(self, term):
         """
         Register a Boolean State Fluent (binary variable) as a new factor.
 
@@ -141,7 +141,7 @@ class FluentSchema(object):
         i.e. For bases `[2, 3, 2]` the result is `[1, 2, 6]`.
 
         The result is cached after the first call; the cache is invalidated
-        whenever a new factor is added via :meth:`add_isf` or
+        whenever a new factor is added via :meth:`add_bsf` or
         :meth:`add_group`.
 
         :rtype: list of int
@@ -177,7 +177,7 @@ class FluentSchema(object):
         Return a flat list of all registered atemporal terms in schema order.
 
         The order matches the registration sequence: BSF terms appear in the
-        order they were added via :meth:`add_isf`; ADS terms appear in the
+        order they were added via :meth:`add_bsf`; ADS terms appear in the
         order their group was added via :meth:`add_group`, with terms within
         each group in their original list order.
 

@@ -76,127 +76,86 @@ class MDP(object):
         # DEBUG: Tabla post-inyección 
         MDPDebugger.save_instructions_table(self._engine._db, filename="post_injection_instructions.txt")
 
+   
     def __build_state_schema(self):
-        """
-        Build the state fluent schema by collecting explicit and implicit
-        declarations and inferring fluent types (ISF vs ADS).
-
-        :raises ValueError: if an ADS group resolves to fewer than 2 options
-        :rtype: FluentSchema
-        """
         schema = FluentSchema()
+        
+        explicit_fluents = self._engine.assignments('state_fluent')
+        implicit_fluents = self._engine.declarations('state_fluent')
+        
+        # 1. Obtenemos el vocabulario estocástico del motor
+        ads_vocabulary = self._engine.get_ads_vocabulary()
 
-        # Collect classified terms from both channels.
-        # Explicit declarations take precedence: implicit terms already
-        # present in `all_terms` are skipped.
-        all_terms = {}  # { term_str: (term, fluent_type) }
-        all_terms.update(self.__classify_explicit_fluents())
+        print("ADS Vocabulary:", ads_vocabulary)
 
-        for term_str, entry in self.__classify_implicit_fluents().items():
+        all_terms = {} 
+        
+        # 2. Procesamiento de fluentes explícitos
+        for term, value in explicit_fluents.items():
+            tag = str(value)
+            if tag in ('bsf', 'ads'):
+                all_terms[str(term)] = (term, tag)
+            else:
+                raise ValueError(f"Unknown tag '{tag}'")
+
+        # 3. Procesamiento de fluentes implícitos (La nueva inferencia O(1))
+        for term in implicit_fluents:
+            term_str = str(term)
             if term_str not in all_terms:
-                all_terms[term_str] = entry
+                if len(term.args) > 0:
+                    # Extraemos el último argumento (ej. el objeto 't' o 'rojo')
+                    last_arg = term.args[-1]
+                    
+                    # Comparamos su texto contra el vocabulario ADS
+                    if str(last_arg) in ads_vocabulary:
+                        fluent_type = 'ads'
+                    else:
+                        fluent_type = 'bsf'
+                else:
+                    fluent_type = 'bsf'
+                    
+                all_terms[term_str] = (term, fluent_type)
 
-        # Partition terms by type and register them in sorted order.
-        ads_accumulator = {}  # { group_key: [term, ...] }
-
+        # 4. Agrupamiento y validación (se mantiene idéntico a su código original)
+        ads_accumulator = {}
         for term_str in sorted(all_terms.keys()):
             term, fluent_type = all_terms[term_str]
-
             if fluent_type == 'ads':
                 group_key = self.__get_group_key(term)
-                ads_accumulator.setdefault(group_key, []).append(term)
+                if group_key not in ads_accumulator:
+                    ads_accumulator[group_key] = []
+                ads_accumulator[group_key].append(term)
             elif fluent_type == 'bsf':
-                schema.add_isf(term)
+                schema.add_bsf(term)
 
-        # Validate and register ADS groups in sorted key order.
         for key in sorted(ads_accumulator.keys()):
-            group = sorted(ads_accumulator[key], key=str)
-            if len(group) < 2:
+            terms_group = sorted(ads_accumulator[key], key=str)
+            if len(terms_group) < 2:
                 raise ValueError(
-                    f"ADS group '{key}' has only {len(group)} option. "
-                    "A mutually exclusive group requires at least 2 options. "
-                    "Either add more values to the domain or declare the "
-                    "fluent as 'bsf'."
+                    f"ADS group '{key}' has only {len(terms_group)} option. "
+                    "A mutually exclusive group requires at least 2 options."
                 )
-            schema.add_group(group)
+            schema.add_group(terms_group)
 
         return schema
-
-    def __classify_explicit_fluents(self):
-        """
-        Classify state fluents declared via the `state_fluent/2` predicate.
-
-        Reads all ground instances of `state_fluent(Term, Type)` from the
-        program, where `Type` must be either the atom 'bsf' (binary) or
-        'ads' (multi-valued). The constant 'bsf' maps to 'bsf'
-        internally for consistency with the schema API.
-
-        Returns a dict mapping each term's string representation to a
-        `(term, fluent_type)` pair.
-        :rtype: dict of (str, (problog.logic.Term, str))
-        """
-        classified = {}
-        for term, type_constant in self._engine.assignments('state_fluent').items():
-            tag = str(type_constant)
-            if tag == 'bsf' or tag == 'ads':
-              fluent_type = tag
-            else:
-                raise ValueError(
-                    f"Unknown state fluent type tag '{tag}' for term '{term}'. "
-                    "Valid tags are 'bsf' and 'ads'."
-                )
-            classified[str(term)] = (term, fluent_type)
-        return classified
-
-    def __classify_implicit_fluents(self):
-        """
-        Classify state fluents declared via the `state_fluent/1` predicate.
-
-        Returns a dict mapping each term's string representation to a
-        `(term, fluent_type)` pair.
-        :rtype: dict of (str, (problog.logic.Term, str))
-        """
-        implicit_terms = self._engine.declarations('state_fluent')
-
-        # Group grounded terms by their static identifier key (args[:-1]).
-        classified = {}
-        groups = {}  # { group_key: [term, ...] } — used only for arity >= 2
-
-        for term in implicit_terms:
-            if len(term.args) <= 1:
-                # Arity 0 or 1: always an independent binary variable.
-                classified[str(term)] = (term, 'bsf')
-            else:
-                # Arity >= 2: defer to the Cardinality Rule after grouping.
-                key = self.__get_group_key(term)
-                groups.setdefault(key, []).append(term)
-
-        # Apply the Cardinality Rule to multi-argument groups.
-        for group in groups.values():
-            fluent_type = 'ads' if len(group) >= 2 else 'bsf'
-            for term in group:
-                classified[str(term)] = (term, fluent_type)
-
-        return classified
 
     def __get_group_key(self, term):
         """
         Generate the grouping key for an annotated disjunction term.
         Strategy: functor plus all arguments except the last one.
 
-        Last-Argument Rule: in a term `f(A1, …, AN)`, arguments `A1` through
-        `A(N-1)` are treated as static identifiers the group key), and argument
-        `AN` is treated as the mutable value (the categorical domain).
-
-        param term: an atemporal state fluent term
+        :param term: state fluent term
         :type term: problog.logic.Term
         :rtype: str
         """
-        if len(term.args) <= 1:
+        if len(term.args) == 0:
             return term.functor
 
-        static_args = term.args[:-1]
-        return "{}({})".format(term.functor, ','.join(map(str, static_args)))
+        if len(term.args) == 1:
+            return term.functor
+
+        variable_args = term.args[:-1]
+        return "{}({})".format(term.functor, ','.join(map(str, variable_args)))
 
     def state_fluents(self):
         """

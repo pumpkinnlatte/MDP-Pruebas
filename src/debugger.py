@@ -20,7 +20,6 @@ import itertools
 from src.fluent import StateSpace, ActionSpace, Fluent
 from datetime import datetime
 
-
 class MDPDebugger(object):
     """
     Utility class for inspection, logging, and debugging of MDP-ProbLog
@@ -31,24 +30,56 @@ class MDPDebugger(object):
 
     @classmethod
     def ensure_debug_dir(cls):
-        """
-        Ensure that the debug directory exists.
-        """
+        """Ensure that the debug directory exists."""
         if not os.path.exists(cls.DEBUG_DIR):
             os.makedirs(cls.DEBUG_DIR)
 
+    @staticmethod
+    def _format_state_name(state_dict):
+        """
+        Generates a clean, readable string representation of a state dictionary.
+        Safely strips the ProbLog time-step argument (e.g., ',0)' or ', 0)') 
+        to output pristine names like 'pos(a)'.
+        """
+        active_terms = []
+        # Support both dictionaries and tuples of items
+        items = state_dict.items() if isinstance(state_dict, dict) else state_dict
+        
+        for term, val in items:
+            if val == 1:
+                term_str = str(term)
+                # Cleaning ProbLog syntax: pos(a, 0) -> pos(a)
+                if term_str.endswith(')'):
+                    if ', 0)' in term_str:
+                        clean_term = term_str.replace(', 0)', ')')
+                    elif ',0)' in term_str:
+                        clean_term = term_str.replace(',0)', ')')
+                    elif '(0)' in term_str:
+                        clean_term = term_str.replace('(0)', '')
+                    else:
+                        clean_term = term_str
+                else:
+                    clean_term = term_str
+                active_terms.append(clean_term)
+        
+        if not active_terms:
+            return "Base_State"
+            
+        return " + ".join(sorted(active_terms))
+
+    @staticmethod
+    def _format_action_name(action_dict):
+        """Generates a clean string representation of an action dictionary."""
+        items = action_dict.items() if isinstance(action_dict, dict) else action_dict
+        for term, val in items:
+            if val == 1:
+                return str(term)
+        return "No_Action"
+
     @classmethod
     def save_instructions_table(cls, db, filename="instructions_table.txt"):
-        """
-        Save the ClauseDB instruction table to a file for inspection.
-
-        :param db: ProbLog clause database
-        :type db: problog.engine.ClauseDB
-        :param filename: output filename
-        :type filename: str
-        """
+        """Save the ClauseDB instruction table to a file for inspection."""
         cls.ensure_debug_dir()
-
         filepath = os.path.join(cls.DEBUG_DIR, filename)
 
         try:
@@ -62,22 +93,14 @@ class MDPDebugger(object):
                 f.write("-" * 60 + "\n")
 
                 for index, node in enumerate(db.iter_raw()):
-                    node_representation = str(node)
-                    f.write("{:<6} | {}\n".format(index, node_representation))
+                    f.write("{:<6} | {}\n".format(index, str(node)))
 
         except IOError as e:
             print("[ERROR] Failed to write debug file: {}".format(e))
 
     @classmethod
     def save_schema(cls, schema, filename="schema_dump.txt"):
-        """
-        Save the FluentSchema representation to a file.
-
-        :param schema: fluent schema
-        :type schema: FluentSchema
-        :param filename: output filename
-        :type filename: str
-        """
+        """Save the FluentSchema representation to a file."""
         cls.ensure_debug_dir()
         filepath = os.path.join(cls.DEBUG_DIR, filename)
 
@@ -88,53 +111,28 @@ class MDPDebugger(object):
             print("[ERROR] Failed to save schema: {}".format(e))
 
     @classmethod
-    def inspect_by_index(cls, db):
-        """
-        Inspect ClauseDB nodes by iterating through all indices.
-
-        :param db: ProbLog clause database
-        :type db: problog.engine.ClauseDB
-        """
-        total = len(db)
-        print("Total nodes reported by len(): {}".format(total))
-
-        print("--- INDEX-BY-INDEX INSPECTION ---")
-        for i in range(total):
-            try:
-                node = db.get_node(i)
-                node_type = type(node).__name__
-                print("[{}] Type: {} | Content: {}".format(i, node_type, node))
-            except Exception as e:
-                print("[{}] ACCESS ERROR: {}".format(i, e))
-
-    @classmethod
     def export_transition_model(cls, mdp, filename="transition_matrices.txt"):
         """
-        Exporta las probabilidades de transición P(s'|s,a) en formato de 
-        matrices cuadradas |S|x|S| para cada acción.
+        Exporta las probabilidades de transición P(s'|s,a) usando el iterador
+        de base mixta. Adaptado para procesar objetos lógicos 'Term' nativos.
         """
         cls.ensure_debug_dir()
         filepath = os.path.join(cls.DEBUG_DIR, filename)
 
         from src.fluent import StateSpace, ActionSpace
-        states = list(StateSpace(mdp.state_schema))
+        state_space = StateSpace(mdp.state_schema)
+        states = list(state_space)
         actions = list(ActionSpace(mdp.actions()))
 
-        # Funciones auxiliares para limpiar la sintaxis lógica (ej. s(class1, 0) -> class1)
-        def clean_state_name(s_dict):
-            for k, v in s_dict.items():
-                if v == 1:
-                    # Extrae 'class1' de 's(class1, 0)'
-                    return str(k).split(',')[0].replace('s(', '')
-            return "unknown"
-
-        def clean_action_name(a_dict):
-            for k, v in a_dict.items():
-                if v == 1:
-                    return str(k)
-            return "unknown"
-
-        state_names = [clean_state_name(s) for s in states]
+        state_names = [cls._format_state_name(s) for s in states]
+        
+        # Calculamos los desplazamientos (strides) para el mapeo matricial
+        factors = mdp.state_schema.factors
+        bases = [len(f) for f in factors]
+        strides = [1] * len(bases)
+        if len(bases) > 0:
+            for i in range(len(bases) - 2, -1, -1):
+                strides[i] = strides[i+1] * bases[i+1]
 
         try:
             with open(filepath, 'w', encoding='utf-8') as f:
@@ -143,60 +141,78 @@ class MDPDebugger(object):
                 f.write("============================================================\n\n")
 
                 for action in actions:
-                    act_name = clean_action_name(action)
+                    act_name = cls._format_action_name(action)
                     f.write(f"--- Matriz de Transición para la Acción: [{act_name}] ---\n")
                     
                     matrix = []
-                    for state in states:
-                        # Obtenemos probabilidades brutas del motor
-                        raw_probs = mdp.transition(state, action)
+                    for current_state in states:
+                        row = [0.0] * len(states)
+                        structured_transitions = mdp.structured_transition(current_state, action)
                         
-                        # Mapeamos término limpio a probabilidad
-                        prob_map = {}
-                        for term, prob in raw_probs:
-                            clean_term = str(term).split(',')[0].replace('s(', '')
-                            prob_map[clean_term] = prob
-                        
-                        # Construimos la fila en el orden exacto de 'state_names'
-                        row = [prob_map.get(sn, 0.0) for sn in state_names]
+                        def _calculate_destinations(groups, current_idx=0, joint_prob=1.0, k=0):
+                            if k == len(groups):
+                                return [(current_idx, joint_prob)]
+                                
+                            destinations = []
+                            base_factor = factors[k]
+                            
+                            # Caso 1: BSF (Fluente Booleano de longitud 1)
+                            if len(base_factor) == 1:
+                                if not groups[k]:
+                                    p_true = 0.0
+                                else:
+                                    # groups[k] contiene [(Term, prob)]
+                                    term_obj, p_true = groups[k][0]
+                                    
+                                p_false = 1.0 - p_true
+                                if p_false > 1e-6: # Rama False (índice 0)
+                                    destinations.extend(_calculate_destinations(groups, current_idx + (0 * strides[k]), joint_prob * p_false, k + 1))
+                                if p_true > 1e-6:  # Rama True (índice 1)
+                                    destinations.extend(_calculate_destinations(groups, current_idx + (1 * strides[k]), joint_prob * p_true, k + 1))
+                            
+                            # Caso 2: ADS (Fluente Multivaluado de longitud > 1)
+                            else:
+                                for term_obj, prob in groups[k]:
+                                    # Limpiamos el término entrante (ej. 'pos(b, 1)' -> 'pos(b)')
+                                    term_clean = cls._format_state_name({term_obj: 1})
+                                    option_idx = 0
+                                    
+                                    # Buscamos su índice en el factor base (ej. iterando 'pos(a, 0)', 'pos(b, 0)'...)
+                                    for i, base_term in enumerate(base_factor):
+                                        if cls._format_state_name({base_term: 1}) == term_clean:
+                                            option_idx = i
+                                            break
+                                            
+                                    next_idx = current_idx + (option_idx * strides[k])
+                                    destinations.extend(_calculate_destinations(groups, next_idx, joint_prob * prob, k + 1))
+                                    
+                            return destinations
+
+                        dest_probs = _calculate_destinations(structured_transitions)
+                        for dest_idx, prob in dest_probs:
+                            if dest_idx < len(row):
+                                row[dest_idx] += prob
+                                
                         matrix.append(row)
                     
-                    # Usamos pandas para un formateo tabular impecable
                     df = pd.DataFrame(matrix, index=state_names, columns=state_names)
                     f.write(df.to_string(float_format="{:.2f}".format))
                     f.write("\n\n")
 
- 
         except IOError as e:
-            print(f"[ERROR] Fallo al escribir el archivo: {e}")
-
+            print(f"[ERROR] Fallo al escribir el archivo de transición: {e}")
 
     @classmethod
     def export_reward_model(cls, mdp, filename="reward_matrix.txt"):
-        """
-        Exporta las recompensas inmediatas esperadas en una matriz de |S|x|A|.
-        """
+        """Exporta las recompensas inmediatas esperadas R(s, a)."""
         cls.ensure_debug_dir()
         filepath = os.path.join(cls.DEBUG_DIR, filename)
 
-        from src.fluent import StateSpace, ActionSpace
         states = list(StateSpace(mdp.state_schema))
         actions = list(ActionSpace(mdp.actions()))
 
-        def clean_state_name(s_dict):
-            for k, v in s_dict.items():
-                if v == 1:
-                    return str(k).split(',')[0].replace('s(', '')
-            return "unknown"
-
-        def clean_action_name(a_dict):
-            for k, v in a_dict.items():
-                if v == 1:
-                    return str(k)
-            return "unknown"
-
-        row_names = [clean_state_name(s) for s in states]
-        col_names = [clean_action_name(a) for a in actions]
+        row_names = [cls._format_state_name(s) for s in states]
+        col_names = [cls._format_action_name(a) for a in actions]
 
         try:
             matrix = []
@@ -217,109 +233,60 @@ class MDPDebugger(object):
                 f.write("\n")
 
         except IOError as e:
-            print(f"[ERROR] Fallo al escribir el archivo: {e}")
+            print(f"[ERROR] Fallo al escribir el archivo de recompensa: {e}")
 
     @classmethod
     def export_q_table(cls, mdp, q_table, filename="q_values_table.txt"):
-        """
-        Exporta la función de valor de acción óptima q*(s,a) en una matriz de |S|x|A|.
-        Permite validar empíricamente la convergencia de la Ecuación de Optimidad de Bellman.
-        """
+        """Exporta la tabla de valores de acción Q*(s,a)."""
         cls.ensure_debug_dir()
         filepath = os.path.join(cls.DEBUG_DIR, filename)
 
-        from src.fluent import StateSpace, ActionSpace
         states = list(StateSpace(mdp.state_schema))
         actions = list(ActionSpace(mdp.actions()))
 
-        def clean_state_name(state_items):
-            """
-            Extrae el nombre del estado basándose en los fluentes activos.
-            Recibe una lista de tuplas ((Termino, 1/0), ...)
-            """
-            active_terms = []
-            for term, val in state_items:
-                if val == 1:
-                    # Convierte marketed(denis, 0) -> marketed(denis)
-                    clean_term = str(term).rsplit(',', 1)[0]
-                    active_terms.append(clean_term)
-            
-            # Si ningún fluente está en 1 (ej. estado base booleano), retorna 'none'
-            if not active_terms:
-                return "Base_State(0)"
-                
-            # Une múltiples fluentes activos (ej. si hay más de 1 ADS)
-            return " + ".join(active_terms)
-
-        def clean_action_name(a_dict):
-            for k, v in a_dict.items():
-                if v == 1:
-                    return str(k)
-            return "unknown_action"
-
-        row_names = [clean_state_name(tuple(s.items())) for s in states]
-        col_names = [clean_action_name(a) for a in actions]
+        row_names = [cls._format_state_name(tuple(s.items())) for s in states]
+        col_names = [cls._format_action_name(a) for a in actions]
 
         try:
             matrix = []
-            for i, state in enumerate(states):
+            for state in states:
                 row = []
                 state_key = tuple(state.items())
-                for j, action in enumerate(actions):
-                    action_name = clean_action_name(action)
-                    
-                    # Recuperamos el valor Q del diccionario
+                for action in actions:
+                    action_name = cls._format_action_name(action)
                     q_val = q_table.get((state_key, action_name), 0.0)
                     row.append(q_val)
                 matrix.append(row)
 
-            # Para evitar duplicados en los índices si los nombres son largos
             df = pd.DataFrame(matrix, index=row_names, columns=col_names)
 
             with open(filepath, 'w', encoding='utf-8') as f:
                 f.write("============================================================\n")
                 f.write(" Tabla Q Óptima q*(s, a) tras Convergencia\n")
                 f.write("============================================================\n\n")
-                
-                # Configuramos Pandas para alinear a la izquierda los nombres
                 pd.set_option('display.colheader_justify', 'center')
                 f.write(df.to_string(float_format="{:.3f}".format, justify='left'))
                 f.write("\n")
 
-         
         except IOError as e:
-            print(f"[ERROR] Fallo al escribir el archivo: {e}")
+            print(f"[ERROR] Fallo al escribir la tabla Q: {e}")
 
     @classmethod
     def export_value_history(cls, mdp, v_history, filename="v_convergence_history.txt"):
-        """
-        Exporta el historial de convergencia de la función de valor V_k(s).
-        Permite visualizar la propagación de la recompensa a través de las iteraciones.
-        """
+        """Exporta el historial de convergencia de Bellman V_k(s)."""
         cls.ensure_debug_dir()
         filepath = os.path.join(cls.DEBUG_DIR, filename)
 
-        from src.fluent import StateSpace
         states = list(StateSpace(mdp.state_schema))
-
-        def clean_state_name(s_dict):
-            for k, v in s_dict.items():
-                if v == 1:
-                    return str(k).split(',')[0].replace('s(', '')
-            return "unknown"
-
-        col_names = [clean_state_name(s) for s in states]
+        col_names = [cls._format_state_name(s) for s in states]
 
         try:
             matrix = []
             row_labels = []
             
-            # Ordenamos las iteraciones cronológicamente
             for iteration in sorted(v_history.keys()):
                 row_labels.append(f"k={iteration}")
                 v_dict = v_history[iteration]
-                
-                # Construimos la fila asegurando el orden correcto de los estados (índice 0 a |S|-1)
                 row = [v_dict.get(i, 0.0) for i in range(len(states))]
                 matrix.append(row)
 
@@ -332,38 +299,27 @@ class MDPDebugger(object):
                 f.write(df.to_string(float_format="{:.4f}".format))
                 f.write("\n")
 
-     
         except IOError as e:
-            print(f"[ERROR] Fallo al escribir el archivo: {e}")
+            print(f"[ERROR] Fallo al escribir el historial de convergencia: {e}")
 
 
 class CPTAnalyzer:
     def __init__(self, mdp):
         self.mdp = mdp
-        # Indices para búsqueda rápida de factores por nombre
         self.state_factors = self._index_factors(mdp.state_schema.factors)
         self.action_factors = self._get_action_factors()
 
     def _index_factors(self, factors):
-        """Organiza los factores por el nombre de su predicado (functor)."""
         index = {}
         for group in factors:
-            # Asumimos que todos los términos del grupo comparten functor (ej: dado(1), dado(2)...)
             name = group[0].functor
             index[name] = group
         return index
 
     def _get_action_factors(self):
-        """
-        Recupera las acciones y las agrupa como un factor único o múltiples
-        dependiendo de cómo estén definidas en MDP-ProbLog.
-        """
-       
         actions = self.mdp.actions()
         if not actions:
             return {}
-    
-        # Estrategia: Agrupar por functor
         groups = {}
         for act in actions:
             name = act.functor
@@ -373,18 +329,14 @@ class CPTAnalyzer:
         return groups
 
     def _get_domain_and_type(self, name):
-        """Busca el dominio de una variable y determina si es estado o acción."""
         if name in self.state_factors:
             return self.state_factors[name], 'state'
         if name in self.action_factors:
             return self.action_factors[name], 'action'
         
-        # Caso especial: Si el usuario pone el nombre de una acción específica (ej: 'tirar')
-        # y esa acción es un átomo sin argumentos (aridad 0), la buscamos directamente.
         for act_name, terms in self.action_factors.items():
             for term in terms:
                 if str(term) == name:
                     return [term], 'action_atom'
                     
         raise ValueError(f"La variable '{name}' no se encuentra en el esquema de Estados ni de Acciones.")
-

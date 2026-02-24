@@ -1,5 +1,5 @@
 % state fluents
-state_fluent(s(X), ads) :- v_s(X).
+state_fluent(s(X), ads) :- states(X).
 
 %actions
 action(study).
@@ -61,8 +61,8 @@ tv_quit :- s(tv, 0), quit.
 1.0::s(sleep, 1) :- s(sleep, 0), pub.
 
 %Background knowledge
-1/5::v_s(class1);
-1/5::v_s(class2);
-1/5::v_s(class3);
-1/5::v_s(tv);
-1/5::v_s(sleep).
+states(class1).
+states(class2).
+states(class3).
+states(tv).
+states(sleep).

@@ -21,7 +21,7 @@ cost :- c1(0), c2(0), not(c3(0)), not(c4(0)), down. % from d to h
 % Para evita partir de un estado bloqueado
 blocked :- c1(0), c2(0), c3(0), c4(0). %a
 blocked :- not(c1(0)), not(c2(0)), not(c3(0)), c4(0). %o
-
+blocked :- not(c1(0)), not(c2(0)), not(c3(0)), not(c4(0)). %p
 
 % Transitions
 % Remember: ((B->P) & (B->Q) <--> (B->(P & Q))
@@ -29,10 +29,10 @@ blocked :- not(c1(0)), not(c2(0)), not(c3(0)), c4(0). %o
 0.99::c1(1) :- c1(0), c2(0), c3(0), not(c4(0)), left, not(blocked). % from b 
 0.99::c2(1) :- c1(0), c2(0), c3(0), not(c4(0)), left, not(blocked). % from b 
 0.99::c3(1) :- c1(0), c2(0), c3(0), not(c4(0)), left, not(blocked). % from b 
-0.01::c4(1) :- c1(0), c2(0), c3(0), not(c4(0)), left, not(blocked). % from b 
+0.99::c4(1) :- c1(0), c2(0), c3(0), not(c4(0)), left, not(blocked). % from b 
 
 0.99::c1(1) :- c1(0), not(c2(0)), c3(0), c4(0), up, not(blocked).%e
-0.01::c2(1) :- c1(0), not(c2(0)), c3(0), c4(0), up, not(blocked).%e
+0.99::c2(1) :- c1(0), not(c2(0)), c3(0), c4(0), up, not(blocked).%e
 0.99::c3(1) :- c1(0), not(c2(0)), c3(0), c4(0), up, not(blocked).%e
 0.99::c4(1) :- c1(0), not(c2(0)), c3(0), c4(0), up, not(blocked).%e
 
@@ -259,19 +259,19 @@ blocked :- not(c1(0)), not(c2(0)), not(c3(0)), c4(0). %o
 
 % To state o
 0.01::c1(1) :- not(c1(0)), c2(0), not(c3(0)), c4(0), down, not(blocked). %k
-0.99::c2(1) :- not(c1(0)), c2(0), not(c3(0)), c4(0), down, not(blocked). %k
+0.01::c2(1) :- not(c1(0)), c2(0), not(c3(0)), c4(0), down, not(blocked). %k
 0.01::c3(1) :- not(c1(0)), c2(0), not(c3(0)), c4(0), down, not(blocked). %k
 0.99::c4(1) :- not(c1(0)), c2(0), not(c3(0)), c4(0), down, not(blocked). %k
 
 0.01::c1(1) :- not(c1(0)), not(c2(0)), c3(0), not(c4(0)), right, not(blocked). %n
 0.01::c2(1) :- not(c1(0)), not(c2(0)), c3(0), not(c4(0)), right, not(blocked). %n
-0.99::c3(1) :- not(c1(0)), not(c2(0)), c3(0), not(c4(0)), right, not(blocked). %n
-0.01::c4(1) :- not(c1(0)), not(c2(0)), c3(0), not(c4(0)), right, not(blocked). %n
+0.01::c3(1) :- not(c1(0)), not(c2(0)), c3(0), not(c4(0)), right, not(blocked). %n
+0.99::c4(x1) :- not(c1(0)), not(c2(0)), c3(0), not(c4(0)), right, not(blocked). %n
 
 0.01::c1(1) :- not(c1(0)), not(c2(0)), not(c3(0)), not(c4(0)), left, not(blocked). %p
 0.01::c2(1) :- not(c1(0)), not(c2(0)), not(c3(0)), not(c4(0)), left, not(blocked). %p
 0.01::c3(1) :- not(c1(0)), not(c2(0)), not(c3(0)), not(c4(0)), left, not(blocked). %p
-0.01::c4(1) :- not(c1(0)), not(c2(0)), not(c3(0)), not(c4(0)), left, not(blocked). %p
+0.99::c4(1) :- not(c1(0)), not(c2(0)), not(c3(0)), not(c4(0)), left, not(blocked). %p
 
 
 % To state p

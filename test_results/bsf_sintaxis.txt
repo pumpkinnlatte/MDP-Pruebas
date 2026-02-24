@@ -26,14 +26,14 @@
     person(fabio).
     person(leliane).
 
-%    La regla anterior deriva en los siguiente mediante el proceso de grounding:
+%    La regla anterior deriva en los siguiente mediante el proceso de grounding/aterrizado:
 
     state_fluent(marketed(thiago)).
     state_fluent(marketed(denis)).
     state_fluent(marketed(fabio)).
     state_fluent(marketed(leliane)).
 
-%    Al ser loos valores de origen hechos probabilisticos independientes, el método de inferencia 
+%    Al ser los valores de origen hechos probabilisticos independientes, el método de inferencia 
      debe de considerarlo como un fluente de estado booleano (BSF)
 
 %    Ej. Declaración mediante reglas y constante explicita

@@ -14,7 +14,7 @@
 
         1/3::colores(rojo);
         1/3::colores(amarillo);
-        1/3::colores(verde).
+        1/3::colores(verde) :- true.
 
 %    - Lo que hace que el sistema distinga entre un BSF (Booleano) y un MVSF (Multivaluado) es el ORIGEN.
 %    - Los valores de origen deben derivarse de disyunciones anotadas (nodos choice en la ClauseDB).
@@ -41,7 +41,7 @@
 
     Ej. Declaración inválida de un MVSF mediante inferencia:
 
-        state_fluent(semaforo(X)) : colores(X).
+        state_fluent(semaforo(X), ads) :- colores(X).
 
         colores(verde).
 
@@ -139,19 +139,23 @@
 % 3. Inferencia Estructural: El Paradigma de Agrupamiento por Cardinalidad
 
 %    - En fluentes paramétricos con N argumentos, existe un problema de explosión combinatoria (2^N) si el motor intenta rastrear en el Abstract Syntax Tree (AST) si cada origen provino de un hecho estático o de una disyunción anotada.
-%    - Para colapsar esta complejidad a O(1), MDP-ProbLog debe abandonar el análisis estático de código y en cambio utilizar la "Inferencia por Cardinalidad" sobre los términos ya aterrizados (grounded).
+%    - Para colapsar esta complejidad, MDP-ProbLog debe abandonar el intentar rastrear el origen de todos los argumentos y limitarle solo a buscar el último de ellos.
 
 % 3.1 Restricción Semántica de los Argumentos Identificadores
-%    - REGLA ESTRICTA: Los orígenes lógicos de los argumentos 1 al N-1 DEBEN ser hechos independientes y deterministas. 
+%    - REGLA ESTRICTA: Los orígenes lógicos de los argumentos 1 al N-1 pueden ser hechos probabilisticos independientes o ADS pero esto no importará ya que solo se tomará en cuenta el origen del último argumento. 
 %    - JUSTIFICACIÓN: Las entidades físicas de un MDP (ej. la existencia de un robot o una habitación) no pueden ser probabilísticas. Solo el estado de esas entidades (argumento N) puede someterse a incertidumbre.
+
+% 3.1.1 Ultimo argumento
+%    - El útlimo termino puede tener de origen una ADS o un hecho probabilistio independiente 
 
 % 3.2 El Algoritmo de Inferencia (Resolución del 2^N)
 %    - El motor delega el producto cartesiano al grounding de ProbLog, obteniendo una lista plana de todos los fluentes de estado válidos.
 %    - Se extrae la llave estática (args[:-1]) de cada fluente aterrizado.
 %    - Se agrupan todos los fluentes que comparten la misma llave en un diccionario de listas.
-%    - SE APLICA LA REGLA DE CARDINALIDAD:
-%        * Si la lista de la llave tiene EXACTAMENTE 1 elemento -> Es un Fluente Binario Independiente (ISF).
-%        * Si la lista de la llave tiene 2 O MÁS elementos -> Es una Disyunción Anotada de Estado (ADS).
+%    - ESTRICTAMENTE SE VERIFICA SI EL ORIGEN DEL TERMINO N ES UNA DISYUNCIÓN ANOTADA
+%    - SI SE VERIFICA QUE ES UNA DISYUNCIÓN ANOTADA:
+%        * Si el origen del termino es una disyunción anotada, por ente, estrictamente debe tener minimo 2 elementos-> Es una Disyunción Anotada de Estado (ADS).
+%    - SI SE DETECTA QUE EL ORIGEN NO ES UNA DISYUNCIÓN, SI NO QUE ES UN HECHO PROBABILISTICO -> Es un Fluente de estado Booleano (BSF)
 
 %    Ej. Aplicación del algoritmo en un fluente complejo de 3 argumentos:
         state_fluent(sensor(X, Y, Z)) :- habitacion(X), dispositivo(Y), medicion(Z).
@@ -200,9 +204,9 @@
 %      jamás tuvo que analizar el código fuente para saber si "medicion" era probabilística 
 %      o si "habitacion" era estática. Simplemente agrupó los datos resultantes por su llave 
 %      (los primeros N-1 argumentos) y contó sus elementos. La complejidad de inferir el 
-%      tipo de fluente se reduce a una simple lectura de longitud de listas (O(1) por grupo).
+%      tipo de fluente se reduce a verificar el origen del utlimo argumento (ADS O Hechos independientes).
 
-%    Ej. Aplicación del algoritmo en un fluente que se infiere como Binario (ISF):
+%    Ej. Aplicación del algoritmo en un fluente que se infiere como Binario (BSF):
         state_fluent(alarma(X, Y)) :- zona(X), estado_alarma(Y).
 
         zona(norte).
@@ -219,9 +223,10 @@
         Llave: alarma(norte) -> Valores: [activada]
         Llave: alarma(sur)   -> Valores: [activada]
 
-%    - PASO 3: Inferencia Automática (Regla de Cardinalidad):
-        alarma(norte) -> Cardinalidad = 1 -> Se infiere como Fluente Binario Independiente (ISF).
-        alarma(sur)   -> Cardinalidad = 1 -> Se infiere como Fluente Binario Independiente (ISF).
+%    - PASO 3: Inferencia Automática (Filtro de Vocabulario Extensional):
+
+        sensor(sala, termometro) -> El último argumento ('alto', 'bajo', 'none') SÍ existe en el vocabulario de exclusión mutua -> Se infiere como Grupo ADS.
+        alarma(norte) -> El último argumento ('activada') NO existe en el vocabulario de exclusión mutua -> Se infiere como BSF.
 
 %    - CONCLUSIÓN DEL EJEMPLO: 
 %      Como cada llave estática solo tiene asociado un (1) único valor posible en su dominio, 
@@ -278,3 +283,29 @@
 %      prioriza la integridad de la Ecuación de Bellman sobre la etiqueta manual del usuario. 
 %      Al detectar un grupo etiquetado como 'ads' con un solo elemento, el motor rechaza 
 %      el modelo y detiene la compilación para evitar un colapso algorítmico posterior.
+
+
+% 4. ALCANCE, FLEXIBILIDAD Y LIMITACIONES DEL FRAMEWORK (SINTAXIS Y ESCALABILIDAD)
+
+%    - MDP-ProbLog está diseñado para resolver Procesos de Decisión de Markov Factorizados (Factored MDPs) de horizonte infinito. 
+%    - A diferencia de los MDPs tradicionales que sufren la "Maldición de la Dimensionalidad" al requerir la definición manual de cada estado , este framework utiliza programación lógica probabilística (ProbLog) para comprimir la representación del sistema.
+
+% 4.1 Flexibilidad: El Poder de la Representación Relacional
+%    - ALCANCE: El uso de lógica de primer orden permite definir espacios de estado masivos mediante reglas paramétricas abstractas (Plantillas).
+%    - En lugar de declarar explícitamente "persona_A_tiene_TV", "persona_B_tiene_Radio", el usuario simplemente declara el conocimiento base (Background Knowledge) y el motor genera el producto cartesiano automáticamente.
+%    - FLEXIBILIDAD ESTRUCTURAL: El framework soporta de manera nativa espacios de estado de Bases Mixtas (Mixed-Radix). Es capaz de orquestar simultáneamente variables booleanas puras (BSF) para sensores independientes, y variables categóricas (ADS) para propiedades mutuamente excluyentes, aislando matemáticamente cada sub-dominio.
+
+% 4.2 Limitación Sintáctica: La Pérdida de la Libertad Posicional
+%    - EL COMPROMISO (TRADE-OFF): En Prolog estándar, el orden de los argumentos en un predicado no altera su semántica (ej. relacion(Llave, Valor) es igual de válido que relacion(Valor, Llave)).
+%    - LA LIMITACIÓN: Para lograr que MDP-ProbLog pueda inferir la topología geométrica del MDP en tiempo constante O(1) sin rastrear variables en el Árbol de Sintaxis (AST), el framework impone una restricción sintáctica estricta: La "Regla del Último Argumento".
+%    - CONSECUENCIA: El diseñador del modelo pierde la libertad posicional. Si un usuario modela un estado donde el dominio mutuable está en el primer argumento (ej. state_fluent(color(Valor, Objeto))), la arquitectura actual colapsará o lo inferirá erróneamente como BSF. El usuario está obligado a estructurar su mente y su código hacia el modelo: propiedad(Entidad, ..., Valor).
+
+% 4.3 Limitación Computacional: El Cuello de Botella del "Grounding"
+%    - ALCANCE TEÓRICO vs PRÁCTICO: Aunque la sintaxis permite representar MDPs con millones de estados usando unas pocas líneas de código, el solucionador subyacente (ProbLog) no opera directamente sobre lógica de primer orden.
+%    - LA LIMITACIÓN: Antes de ejecutar la Ecuación de Bellman, ProbLog realiza un proceso de "Grounding" (Aterrizaje), convirtiendo las reglas abstractas en un circuito booleano proposicional gigante.
+%    - CONSECUENCIA: Si el diseñador del modelo abusa de la flexibilidad relacional introduciendo demasiadas entidades en el conocimiento base (ej. 100 personas, 50 canales de marketing, 10 instantes de tiempo), el producto cartesiano de las llaves estáticas provocará un colapso de memoria RAM (State Space Explosion) durante la fase de compilación (ClauseDB), mucho antes de que inicie la iteración de valor.
+
+% 4.4 La Carga de la Inercia (El Problema del Marco Generalizado)
+%    - FLEXIBILIDAD DE TRANSICIÓN: El framework permite definir la probabilidad de un estado futuro condicionado únicamente a un subconjunto de variables del estado actual , lo que reduce drásticamente los parámetros de transición que el usuario debe escribir.
+%    - LA LIMITACIÓN: El lenguaje probabilístico subyacente asume la suposición del mundo cerrado (Closed-World Assumption). Lo que no se declara explícitamente que cambia o se mantiene, se vuelve falso por defecto.
+%    - CONSECUENCIA: MDP-ProbLog carece de un motor de inercia nativo. El framework transfiere al usuario la carga semántica de definir explícitamente los "Axiomas de Marco". Si un dominio mutuable no se ve afectado por una acción particular, el usuario debe escribir reglas redundantes (ej. 1.0::estado(1) :- estado(0), accion_irrelevante) para evitar que las variables colapsen a su estado base durante las iteraciones de transición.

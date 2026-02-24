@@ -3,42 +3,42 @@
 ============================================================
 
 --- Matriz de Transición para la Acción: [pub] ---
-        class1  class2  class3  sleep   tv
-class1    0.00    0.00    0.00   0.00 0.00
-class2    0.00    0.00    0.00   0.00 0.00
-class3    0.20    0.40    0.40   0.00 0.00
-sleep     0.00    0.00    0.00   1.00 0.00
-tv        0.00    0.00    0.00   0.00 0.00
+           s(class1)  s(class2)  s(class3)  s(sleep)  s(tv)
+s(class1)       0.00       0.00       0.00      0.00   0.00
+s(class2)       0.00       0.00       0.00      0.00   0.00
+s(class3)       1.00       0.00       0.00      0.00   0.00
+s(sleep)        1.00       0.00       0.00      0.00   0.00
+s(tv)           0.00       0.00       0.00      0.00   0.00
 
 --- Matriz de Transición para la Acción: [quit] ---
-        class1  class2  class3  sleep   tv
-class1    0.00    0.00    0.00   0.00 0.00
-class2    0.00    0.00    0.00   0.00 0.00
-class3    0.00    0.00    0.00   0.00 0.00
-sleep     0.00    0.00    0.00   1.00 0.00
-tv        1.00    0.00    0.00   0.00 0.00
+           s(class1)  s(class2)  s(class3)  s(sleep)  s(tv)
+s(class1)       0.00       0.00       0.00      0.00   0.00
+s(class2)       0.00       0.00       0.00      0.00   0.00
+s(class3)       0.00       0.00       0.00      0.00   0.00
+s(sleep)        1.00       0.00       0.00      0.00   0.00
+s(tv)           1.00       0.00       0.00      0.00   0.00
 
 --- Matriz de Transición para la Acción: [relax] ---
-        class1  class2  class3  sleep   tv
-class1    0.00    0.00    0.00   0.00 1.00
-class2    0.00    0.00    0.00   0.00 0.00
-class3    0.00    0.00    0.00   0.00 0.00
-sleep     0.00    0.00    0.00   1.00 0.00
-tv        0.00    0.00    0.00   0.00 1.00
+           s(class1)  s(class2)  s(class3)  s(sleep)  s(tv)
+s(class1)       1.00       0.00       0.00      0.00   0.00
+s(class2)       0.00       0.00       0.00      0.00   0.00
+s(class3)       0.00       0.00       0.00      0.00   0.00
+s(sleep)        1.00       0.00       0.00      0.00   0.00
+s(tv)           1.00       0.00       0.00      0.00   0.00
 
 --- Matriz de Transición para la Acción: [sleep] ---
-        class1  class2  class3  sleep   tv
-class1    0.00    0.00    0.00   0.00 0.00
-class2    0.00    0.00    0.00   1.00 0.00
-class3    0.00    0.00    0.00   0.00 0.00
-sleep     0.00    0.00    0.00   1.00 0.00
-tv        0.00    0.00    0.00   0.00 0.00
+           s(class1)  s(class2)  s(class3)  s(sleep)  s(tv)
+s(class1)       0.00       0.00       0.00      0.00   0.00
+s(class2)       1.00       0.00       0.00      0.00   0.00
+s(class3)       0.00       0.00       0.00      0.00   0.00
+s(sleep)        1.00       0.00       0.00      0.00   0.00
+s(tv)           0.00       0.00       0.00      0.00   0.00
 
 --- Matriz de Transición para la Acción: [study] ---
-        class1  class2  class3  sleep   tv
-class1    0.00    1.00    0.00   0.00 0.00
-class2    0.00    0.00    1.00   0.00 0.00
-class3    0.00    0.00    0.00   1.00 0.00
-sleep     0.00    0.00    0.00   1.00 0.00
-tv        0.00    0.00    0.00   0.00 0.00
+           s(class1)  s(class2)  s(class3)  s(sleep)  s(tv)
+s(class1)       1.00       0.00       0.00      0.00   0.00
+s(class2)       1.00       0.00       0.00      0.00   0.00
+s(class3)       1.00       0.00       0.00      0.00   0.00
+s(sleep)        1.00       0.00       0.00      0.00   0.00
+s(tv)           0.00       0.00       0.00      0.00   0.00
 
