@@ -111,7 +111,8 @@ def show_state_space(schema):
 
 if __name__ == "__main__":
 
-    prog_dir = "tests/model_tests/student_MDP.pl"
+    prog_dir = "tests/model_tests/mitchell_grid/grid01.pl"
+    #prog_dir = "tests/model_tests/student/student01.pl"
  
     # Cargar modelo
     model_str = load_model(prog_dir)
@@ -135,5 +136,4 @@ if __name__ == "__main__":
 
     MDPDebugger.export_q_table(mdp, Q_table)
     MDPDebugger.export_value_history(mdp, V_history)
-
 
