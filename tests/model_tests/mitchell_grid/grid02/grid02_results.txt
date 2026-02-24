@@ -1,0 +1,46 @@
+============================================================
+ MDP State Schema
+============================================================
+Total state space size: 6
+------------------------------------------------------------
+[BSF] Boolean State Fluents (0)
+      Each iterates independently over {0, 1}.
+      (none)
+
+[ADS] Multivalued State Fluents (1)
+      Exactly one option is true per group (one-hot).
+      > Group #0  (base: 6)
+          (o) pos(coor(1,1))
+          (o) pos(coor(1,2))
+          (o) pos(coor(1,3))
+          (o) pos(coor(2,1))
+          (o) pos(coor(2,2))
+          (o) pos(coor(2,3))
+
+============================================================
+
+------ VI States: ----
+
+  0: OrderedDict({pos(coor(1,1),0): 1, pos(coor(1,2),0): 0, pos(coor(1,3),0): 0, pos(coor(2,1),0): 0, pos(coor(2,2),0): 0, pos(coor(2,3),0): 0})
+  1: OrderedDict({pos(coor(1,1),0): 0, pos(coor(1,2),0): 1, pos(coor(1,3),0): 0, pos(coor(2,1),0): 0, pos(coor(2,2),0): 0, pos(coor(2,3),0): 0})
+  2: OrderedDict({pos(coor(1,1),0): 0, pos(coor(1,2),0): 0, pos(coor(1,3),0): 1, pos(coor(2,1),0): 0, pos(coor(2,2),0): 0, pos(coor(2,3),0): 0})
+  3: OrderedDict({pos(coor(1,1),0): 0, pos(coor(1,2),0): 0, pos(coor(1,3),0): 0, pos(coor(2,1),0): 1, pos(coor(2,2),0): 0, pos(coor(2,3),0): 0})
+  4: OrderedDict({pos(coor(1,1),0): 0, pos(coor(1,2),0): 0, pos(coor(1,3),0): 0, pos(coor(2,1),0): 0, pos(coor(2,2),0): 1, pos(coor(2,3),0): 0})
+  5: OrderedDict({pos(coor(1,1),0): 0, pos(coor(1,2),0): 0, pos(coor(1,3),0): 0, pos(coor(2,1),0): 0, pos(coor(2,2),0): 0, pos(coor(2,3),0): 1})
+
+Value(pos(coor(1,1),0)=1, pos(coor(1,2),0)=0, pos(coor(1,3),0)=0, pos(coor(2,1),0)=0, pos(coor(2,2),0)=0, pos(coor(2,3),0)=0) = 90.000
+Value(pos(coor(1,1),0)=0, pos(coor(1,2),0)=1, pos(coor(1,3),0)=0, pos(coor(2,1),0)=0, pos(coor(2,2),0)=0, pos(coor(2,3),0)=0) = 100.000
+Value(pos(coor(1,1),0)=0, pos(coor(1,2),0)=0, pos(coor(1,3),0)=1, pos(coor(2,1),0)=0, pos(coor(2,2),0)=0, pos(coor(2,3),0)=0) = 0.000
+Value(pos(coor(1,1),0)=0, pos(coor(1,2),0)=0, pos(coor(1,3),0)=0, pos(coor(2,1),0)=1, pos(coor(2,2),0)=0, pos(coor(2,3),0)=0) = 81.000
+Value(pos(coor(1,1),0)=0, pos(coor(1,2),0)=0, pos(coor(1,3),0)=0, pos(coor(2,1),0)=0, pos(coor(2,2),0)=1, pos(coor(2,3),0)=0) = 90.000
+Value(pos(coor(1,1),0)=0, pos(coor(1,2),0)=0, pos(coor(1,3),0)=0, pos(coor(2,1),0)=0, pos(coor(2,2),0)=0, pos(coor(2,3),0)=1) = 100.000
+
+Policy(pos(coor(1,1),0)=1, pos(coor(1,2),0)=0, pos(coor(1,3),0)=0, pos(coor(2,1),0)=0, pos(coor(2,2),0)=0, pos(coor(2,3),0)=0) = right
+Policy(pos(coor(1,1),0)=0, pos(coor(1,2),0)=1, pos(coor(1,3),0)=0, pos(coor(2,1),0)=0, pos(coor(2,2),0)=0, pos(coor(2,3),0)=0) = right
+Policy(pos(coor(1,1),0)=0, pos(coor(1,2),0)=0, pos(coor(1,3),0)=1, pos(coor(2,1),0)=0, pos(coor(2,2),0)=0, pos(coor(2,3),0)=0) = up
+Policy(pos(coor(1,1),0)=0, pos(coor(1,2),0)=0, pos(coor(1,3),0)=0, pos(coor(2,1),0)=1, pos(coor(2,2),0)=0, pos(coor(2,3),0)=0) = up
+Policy(pos(coor(1,1),0)=0, pos(coor(1,2),0)=0, pos(coor(1,3),0)=0, pos(coor(2,1),0)=0, pos(coor(2,2),0)=1, pos(coor(2,3),0)=0) = up
+Policy(pos(coor(1,1),0)=0, pos(coor(1,2),0)=0, pos(coor(1,3),0)=0, pos(coor(2,1),0)=0, pos(coor(2,2),0)=0, pos(coor(2,3),0)=1) = up
+
+>> Value iteration converged in 0.021sec after 3 iterations.
+>> Average time per iteration = 0.007sec.

@@ -26,6 +26,10 @@ goal :- not(pos(coor(1,3), 0)), pos(coor(1,3), 1).
 
 %P(X | coor(1,3), a).
 1.00::pos((coor(1,3)), 1):- pos((coor(1,3)), 0), stay.
+1.00::pos((coor(1,3)), 1):- pos((coor(1,3)), 0), left.
+1.00::pos((coor(1,3)), 1):- pos((coor(1,3)), 0), right.
+1.00::pos((coor(1,3)), 1):- pos((coor(1,3)), 0), up.
+1.00::pos((coor(1,3)), 1):- pos((coor(1,3)), 0), down.
 
 %P(X | coor(2,1), a).
 1.00::pos((coor(1,1)), 1):- pos((coor(2,1)), 0), up.
@@ -40,7 +44,6 @@ goal :- not(pos(coor(1,3), 0)), pos(coor(1,3), 1).
 
 1.00::pos((coor(1,3)), 1):- pos((coor(2,3)), 0), up.
 1.00::pos((coor(2,2)), 1):- pos((coor(2,3)), 0), left.
-
 
 %Background knowledge
 row(1).

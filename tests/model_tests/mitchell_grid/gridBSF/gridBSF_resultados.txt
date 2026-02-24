@@ -1,0 +1,47 @@
+============================================================
+ MDP State Schema
+============================================================
+Total state space size: 8
+------------------------------------------------------------
+[BSF] Boolean State Fluents (3)
+      Each iterates independently over {0, 1}.
+      [ ] b1
+      [ ] b2
+      [ ] b3
+
+[ADS] Multivalued State Fluents (0)
+      Exactly one option is true per group (one-hot).
+      (none)
+============================================================
+
+------ VI States: ----
+
+  0: OrderedDict({b1(0): 0, b2(0): 0, b3(0): 0})
+  1: OrderedDict({b1(0): 1, b2(0): 0, b3(0): 0})
+  2: OrderedDict({b1(0): 0, b2(0): 1, b3(0): 0})
+  3: OrderedDict({b1(0): 1, b2(0): 1, b3(0): 0})
+  4: OrderedDict({b1(0): 0, b2(0): 0, b3(0): 1})
+  5: OrderedDict({b1(0): 1, b2(0): 0, b3(0): 1})
+  6: OrderedDict({b1(0): 0, b2(0): 1, b3(0): 1})
+  7: OrderedDict({b1(0): 1, b2(0): 1, b3(0): 1})
+
+Value(b1(0)=0, b2(0)=0, b3(0)=0) = 0.000
+Value(b1(0)=1, b2(0)=0, b3(0)=0) = 90.000
+Value(b1(0)=0, b2(0)=1, b3(0)=0) = 100.000
+Value(b1(0)=1, b2(0)=1, b3(0)=0) = 0.000
+Value(b1(0)=0, b2(0)=0, b3(0)=1) = 81.000
+Value(b1(0)=1, b2(0)=0, b3(0)=1) = 90.000
+Value(b1(0)=0, b2(0)=1, b3(0)=1) = 100.000
+Value(b1(0)=1, b2(0)=1, b3(0)=1) = 0.000
+
+Policy(b1(0)=0, b2(0)=0, b3(0)=0) = up
+Policy(b1(0)=1, b2(0)=0, b3(0)=0) = right
+Policy(b1(0)=0, b2(0)=1, b3(0)=0) = right
+Policy(b1(0)=1, b2(0)=1, b3(0)=0) = up
+Policy(b1(0)=0, b2(0)=0, b3(0)=1) = up
+Policy(b1(0)=1, b2(0)=0, b3(0)=1) = up
+Policy(b1(0)=0, b2(0)=1, b3(0)=1) = up
+Policy(b1(0)=1, b2(0)=1, b3(0)=1) = up
+
+>> Value iteration converged in 0.057sec after 3 iterations.
+>> Average time per iteration = 0.019sec.
