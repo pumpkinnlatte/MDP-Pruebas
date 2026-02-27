@@ -56,6 +56,4 @@
 %    state_fluent/1 != state_fluent/2
 
 
-
-
-
+Hola estoy en la fase de reestructurar el motor de inferencia de la arquitectura actual que describe las modificaciones realizadas a MDP-ProbLog. Se ha establecido un plan de acción para el rediseño y me gustaría comenzar a realizar las implementaciones correspondientes. Iremos paso a paso acorde al plan. Si tienes alguna duda sobre las decisiones de diseño eres libre de preguntarme. El plan de acción menciona dos archivos clave los cuales te los adjuntaré de igual manera a este mensaje.

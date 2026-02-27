@@ -1,0 +1,32 @@
+INSTALAR
+https://github.com/hector-aviles/self-driving-car-ROS2
+https://docs.ros.org/en/jazzy/index.html
+https://opencv.org/
+https://www.cyberbotics.com/doc/blog/Webots-2025-a-release?tab-language=python
+
+
+Cuidado con el ROS2.
+
+Cuidado con el Webots ya que hay un montón de librerias que instalar.
+
+configurador del entrono = .bashrc.
+
+1. Entrar al github self driving car
+2. Es IMPORTANTISIMO QUE ANTES DE INSTALAR SE CONSTRUYA EN UN AMBIENTE VIRTUAL .venv/
+3. EL subdir eos2_ws almacena todo en un workspace donde se tiene que generar manualmente un src/
+4. ROS supone que todo está dividido en funciones. Estas funciones se construyen en "paquetes"
+    - Detector de carriles
+    - Detector de obstaculos
+    - Modulo de decisión
+5. Debe de haber una convención para que se comu
+
+behaviors.py ejecuta las acciones
+lane detector canny es el detector de carriles
+success verifica que no hayamos chocado
+
+Utils lo va a terminar nicolás AHORITA NO HAYH NADA ESTÁ VACIO HAY QUE TOMAR LA VERSIÓN DE self-driving-car-2025
+
+
+
+- TAREA PARA MANUEL ES LEER EL ARTICULO 
+- TRAER DUDAS PARA IR VIENDOLAS

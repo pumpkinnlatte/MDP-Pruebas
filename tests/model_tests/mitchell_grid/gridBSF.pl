@@ -14,8 +14,9 @@ action(stay).
 utility(goal, 100).
 utility(stay, 0).
 
-% Evitamos evaluar el estado bloqueado
+% Evitamos evaluar los estados bloqueados
 blocked :- b1(0), b2(0), b3(0).
+blocked :- not(b1(0)), not(b2(0)), not(b3(0)).
 
 %reward model
 goal :- not(b1(0)), b2(0), not(b3(0)), right, not(blocked).

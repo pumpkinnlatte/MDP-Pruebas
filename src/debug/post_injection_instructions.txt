@@ -1,86 +1,64 @@
 === MDP-ProbLog Instructions Table ===
-Timestamp: 2026-02-24 15:38:38
-Total Nodes: 231
+Timestamp: 2026-02-26 00:58:42
+Total Nodes: 183
 ============================================================
 
 ID     | Instruction / Content
 ------------------------------------------------------------
 0      | _builtin_forall(V_0,V_1) :- \+(call(V_0), \+call(V_1))
-1      | state_fluent(pos(coor(V_0,V_1)),ads) :- row(V_0), col(V_1)
-2      | action(left)
-3      | action(right)
-4      | action(up)
-5      | action(down)
-6      | action(stay)
-7      | utility(goal,100)
-8      | goal :- \+pos(coor(1,3),0), pos(coor(1,3),1)
-9      | body_34(30,pos(coor(1,2),1)) :- pos(coor(1,1),0), right
-10     | 1.0::choice(30,0,pos(coor(1,2),1))
-11     | pos(coor(1,2),1) :- body_34(30,pos(coor(1,2),1)), choice(30,0,pos(coor(1,2),1))
-12     | body_45(41,pos(coor(2,1),1)) :- pos(coor(1,1),0), down
-13     | 1.0::choice(41,0,pos(coor(2,1),1))
-14     | pos(coor(2,1),1) :- body_45(41,pos(coor(2,1),1)), choice(41,0,pos(coor(2,1),1))
-15     | body_55(52,pos(coor(1,3),1)) :- pos(coor(1,2),0), right
-16     | 1.0::choice(52,0,pos(coor(1,3),1))
-17     | pos(coor(1,3),1) :- body_55(52,pos(coor(1,3),1)), choice(52,0,pos(coor(1,3),1))
-18     | body_66(62,pos(coor(1,1),1)) :- pos(coor(1,2),0), left
-19     | 1.0::choice(62,0,pos(coor(1,1),1))
-20     | pos(coor(1,1),1) :- body_66(62,pos(coor(1,1),1)), choice(62,0,pos(coor(1,1),1))
-21     | body_76(73,pos(coor(2,2),1)) :- pos(coor(1,2),0), down
-22     | 1.0::choice(73,0,pos(coor(2,2),1))
-23     | pos(coor(2,2),1) :- body_76(73,pos(coor(2,2),1)), choice(73,0,pos(coor(2,2),1))
-24     | body_87(83,pos(coor(1,3),1)) :- pos(coor(1,3),0), stay
-25     | 1.0::choice(83,0,pos(coor(1,3),1))
-26     | pos(coor(1,3),1) :- body_87(83,pos(coor(1,3),1)), choice(83,0,pos(coor(1,3),1))
-27     | body_98(94,pos(coor(1,1),1)) :- pos(coor(2,1),0), up
-28     | 1.0::choice(94,0,pos(coor(1,1),1))
-29     | pos(coor(1,1),1) :- body_98(94,pos(coor(1,1),1)), choice(94,0,pos(coor(1,1),1))
-30     | body_108(105,pos(coor(2,2),1)) :- pos(coor(2,1),0), right
-31     | 1.0::choice(105,0,pos(coor(2,2),1))
-32     | pos(coor(2,2),1) :- body_108(105,pos(coor(2,2),1)), choice(105,0,pos(coor(2,2),1))
-33     | body_118(115,pos(coor(1,2),1)) :- pos(coor(2,2),0), up
-34     | 1.0::choice(115,0,pos(coor(1,2),1))
-35     | pos(coor(1,2),1) :- body_118(115,pos(coor(1,2),1)), choice(115,0,pos(coor(1,2),1))
-36     | body_128(125,pos(coor(2,1),1)) :- pos(coor(2,2),0), left
-37     | 1.0::choice(125,0,pos(coor(2,1),1))
-38     | pos(coor(2,1),1) :- body_128(125,pos(coor(2,1),1)), choice(125,0,pos(coor(2,1),1))
-39     | body_138(135,pos(coor(2,3),1)) :- pos(coor(2,2),0), right
-40     | 1.0::choice(135,0,pos(coor(2,3),1))
-41     | pos(coor(2,3),1) :- body_138(135,pos(coor(2,3),1)), choice(135,0,pos(coor(2,3),1))
-42     | body_148(145,pos(coor(1,3),1)) :- pos(coor(2,3),0), up
-43     | 1.0::choice(145,0,pos(coor(1,3),1))
-44     | pos(coor(1,3),1) :- body_148(145,pos(coor(1,3),1)), choice(145,0,pos(coor(1,3),1))
-45     | body_158(155,pos(coor(2,2),1)) :- pos(coor(2,3),0), left
-46     | 1.0::choice(155,0,pos(coor(2,2),1))
-47     | pos(coor(2,2),1) :- body_158(155,pos(coor(2,2),1)), choice(155,0,pos(coor(2,2),1))
-48     | row(1)
-49     | row(2)
-50     | col(1)
-51     | col(2)
-52     | col(3)
-53     | body_171(170,multi) :- true
-54     | 0.166666666666667::choice(170,0,pos(coor(1,1),0))
-55     | pos(coor(1,1),0) :- body_171(170,multi), choice(170,0,pos(coor(1,1),0))
-56     | 0.166666666666667::choice(170,1,pos(coor(1,2),0))
-57     | pos(coor(1,2),0) :- body_171(170,multi), choice(170,1,pos(coor(1,2),0))
-58     | 0.166666666666667::choice(170,2,pos(coor(1,3),0))
-59     | pos(coor(1,3),0) :- body_171(170,multi), choice(170,2,pos(coor(1,3),0))
-60     | 0.166666666666667::choice(170,3,pos(coor(2,1),0))
-61     | pos(coor(2,1),0) :- body_171(170,multi), choice(170,3,pos(coor(2,1),0))
-62     | 0.166666666666667::choice(170,4,pos(coor(2,2),0))
-63     | pos(coor(2,2),0) :- body_171(170,multi), choice(170,4,pos(coor(2,2),0))
-64     | 0.166666666666667::choice(170,5,pos(coor(2,3),0))
-65     | pos(coor(2,3),0) :- body_171(170,multi), choice(170,5,pos(coor(2,3),0))
-66     | body_204(203,multi) :- true
-67     | 0.2::choice(203,0,down)
-68     | down :- body_204(203,multi), choice(203,0,down)
-69     | 0.2::choice(203,1,left)
-70     | left :- body_204(203,multi), choice(203,1,left)
-71     | 0.2::choice(203,2,right)
-72     | right :- body_204(203,multi), choice(203,2,right)
-73     | 0.2::choice(203,3,stay)
-74     | stay :- body_204(203,multi), choice(203,3,stay)
-75     | 0.2::choice(203,4,up)
-76     | up :- body_204(203,multi), choice(203,4,up)
-77     | mutual_exclusive([choice(170,0,pos(coor(1,1),0)), choice(170,1,pos(coor(1,2),0)), choice(170,2,pos(coor(1,3),0)), choice(170,3,pos(coor(2,1),0)), choice(170,4,pos(coor(2,2),0)), choice(170,5,pos(coor(2,3),0))])
-78     | mutual_exclusive([choice(203,0,down), choice(203,1,left), choice(203,2,right), choice(203,3,stay), choice(203,4,up)])
+1      | row(1)
+2      | row(2)
+3      | col(1)
+4      | col(2)
+5      | col(3)
+6      | state_fluent(pos(coor(V_0,V_1)),ads) :- row(V_0), col(V_1)
+7      | action(left)
+8      | action(right)
+9      | action(up)
+10     | action(down)
+11     | action(stay)
+12     | utility(goal,100)
+13     | utility(stay,0)
+14     | goal :- pos(coor(1,3),1), \+terminal
+15     | terminal :- pos(coor(1,3),0)
+16     | body_50(39,pos(coor(V_0,V_1),1),V_0,V_1,V_2) :- pos(coor(V_0,V_2),0), right, V_1 is V_2+1, col(V_1), \+terminal
+17     | 1.0::choice(39,0,pos(coor(A1,A2),1),A1,A2,A3)
+18     | pos(coor(V_0,V_1),1) :- body_50(39,pos(coor(V_0,V_1),1),V_0,V_1,V_2), choice(39,0,pos(coor(V_0,V_1),1),V_0,V_1,V_2)
+19     | body_68(57,pos(coor(V_0,V_1),1),V_0,V_1,V_2) :- pos(coor(V_0,V_2),0), left, V_1 is V_2-1, col(V_1), \+terminal
+20     | 1.0::choice(57,0,pos(coor(A1,A2),1),A1,A2,A3)
+21     | pos(coor(V_0,V_1),1) :- body_68(57,pos(coor(V_0,V_1),1),V_0,V_1,V_2), choice(57,0,pos(coor(V_0,V_1),1),V_0,V_1,V_2)
+22     | body_86(75,pos(coor(V_0,V_1),1),V_0,V_1,V_2) :- pos(coor(V_2,V_1),0), down, V_0 is V_2+1, row(V_0), \+terminal
+23     | 1.0::choice(75,0,pos(coor(A1,A2),1),A1,A2,A3)
+24     | pos(coor(V_0,V_1),1) :- body_86(75,pos(coor(V_0,V_1),1),V_0,V_1,V_2), choice(75,0,pos(coor(V_0,V_1),1),V_0,V_1,V_2)
+25     | body_104(93,pos(coor(V_0,V_1),1),V_0,V_1,V_2) :- pos(coor(V_2,V_1),0), up, V_0 is V_2-1, row(V_0), \+terminal
+26     | 1.0::choice(93,0,pos(coor(A1,A2),1),A1,A2,A3)
+27     | pos(coor(V_0,V_1),1) :- body_104(93,pos(coor(V_0,V_1),1),V_0,V_1,V_2), choice(93,0,pos(coor(V_0,V_1),1),V_0,V_1,V_2)
+28     | body_115(111,pos(coor(1,3),1)) :- pos(coor(1,3),0), stay
+29     | 1.0::choice(111,0,pos(coor(1,3),1))
+30     | pos(coor(1,3),1) :- body_115(111,pos(coor(1,3),1)), choice(111,0,pos(coor(1,3),1))
+31     | body_123(122,multi) :- true
+32     | 0.166666666666667::choice(122,0,pos(coor(1,1),0))
+33     | pos(coor(1,1),0) :- body_123(122,multi), choice(122,0,pos(coor(1,1),0))
+34     | 0.166666666666667::choice(122,1,pos(coor(1,2),0))
+35     | pos(coor(1,2),0) :- body_123(122,multi), choice(122,1,pos(coor(1,2),0))
+36     | 0.166666666666667::choice(122,2,pos(coor(1,3),0))
+37     | pos(coor(1,3),0) :- body_123(122,multi), choice(122,2,pos(coor(1,3),0))
+38     | 0.166666666666667::choice(122,3,pos(coor(2,1),0))
+39     | pos(coor(2,1),0) :- body_123(122,multi), choice(122,3,pos(coor(2,1),0))
+40     | 0.166666666666667::choice(122,4,pos(coor(2,2),0))
+41     | pos(coor(2,2),0) :- body_123(122,multi), choice(122,4,pos(coor(2,2),0))
+42     | 0.166666666666667::choice(122,5,pos(coor(2,3),0))
+43     | pos(coor(2,3),0) :- body_123(122,multi), choice(122,5,pos(coor(2,3),0))
+44     | body_156(155,multi) :- true
+45     | 0.2::choice(155,0,down)
+46     | down :- body_156(155,multi), choice(155,0,down)
+47     | 0.2::choice(155,1,left)
+48     | left :- body_156(155,multi), choice(155,1,left)
+49     | 0.2::choice(155,2,right)
+50     | right :- body_156(155,multi), choice(155,2,right)
+51     | 0.2::choice(155,3,stay)
+52     | stay :- body_156(155,multi), choice(155,3,stay)
+53     | 0.2::choice(155,4,up)
+54     | up :- body_156(155,multi), choice(155,4,up)
+55     | mutual_exclusive([choice(122,0,pos(coor(1,1),0)), choice(122,1,pos(coor(1,2),0)), choice(122,2,pos(coor(1,3),0)), choice(122,3,pos(coor(2,1),0)), choice(122,4,pos(coor(2,2),0)), choice(122,5,pos(coor(2,3),0))])
+56     | mutual_exclusive([choice(155,0,down), choice(155,1,left), choice(155,2,right), choice(155,3,stay), choice(155,4,up)])

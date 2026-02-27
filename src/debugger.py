@@ -114,25 +114,31 @@ class MDPDebugger(object):
     def export_transition_model(cls, mdp, filename="transition_matrices.txt"):
         """
         Exporta las probabilidades de transición P(s'|s,a) usando el iterador
-        de base mixta. Adaptado para procesar objetos lógicos 'Term' nativos.
+        de base mixta y los índices absolutos del FluentSchema.
         """
+        import os
+        import pandas as pd
+        from src.fluent import StateSpace, ActionSpace
+
         cls.ensure_debug_dir()
         filepath = os.path.join(cls.DEBUG_DIR, filename)
 
-        from src.fluent import StateSpace, ActionSpace
-        state_space = StateSpace(mdp.state_schema)
-        states = list(state_space)
-        actions = list(ActionSpace(mdp.actions()))
-
-        state_names = [cls._format_state_name(s) for s in states]
+        # 1. Instanciamos los espacios usando la nueva arquitectura
+        states = StateSpace(mdp.state_schema)
+        actions = ActionSpace(mdp.actions())
         
-        # Calculamos los desplazamientos (strides) para el mapeo matricial
-        factors = mdp.state_schema.factors
-        bases = [len(f) for f in factors]
-        strides = [1] * len(bases)
-        if len(bases) > 0:
-            for i in range(len(bases) - 2, -1, -1):
-                strides[i] = strides[i+1] * bases[i+1]
+        # 2. Generar etiquetas legibles (extrayendo solo las variables activas == 1)
+        state_names = []
+        for s in states:
+            # Filtramos el diccionario: conservamos la llave 'k' solo si su valor 'v' es 1
+            active_terms = [str(k) for k, v in s.items() if v == 1]
+            
+            # Si su MDP tuviera múltiples factores (ej. posición y clima), los unimos lógicamente
+            clean_name = " ∧ ".join(active_terms) 
+            state_names.append(clean_name)
+        
+        # 3. Recuperar los desplazamientos posicionales directamente del esquema
+        strides = mdp.state_schema.strides
 
         try:
             with open(filepath, 'w', encoding='utf-8') as f:
@@ -140,65 +146,48 @@ class MDPDebugger(object):
                 f.write(" Matrices de Transición P(s'|s, a) por Acción\n")
                 f.write("============================================================\n\n")
 
-                for action in actions:
-                    act_name = cls._format_action_name(action)
-                    f.write(f"--- Matriz de Transición para la Acción: [{act_name}] ---\n")
+                for j, action in enumerate(actions):
+                    # Formatear el nombre de la acción (buscar el término con valor 1)
+                    clean_action = next((str(k) for k, v in action.items() if v == 1), "Unknown")
+                    f.write(f"--- Matriz de Transición para la Acción: [{clean_action}] ---\n")
                     
                     matrix = []
-                    for current_state in states:
-                        row = [0.0] * len(states)
-                        structured_transitions = mdp.structured_transition(current_state, action)
+                    for i, state in enumerate(states):
+                        cache_key = (i, j)
+                        # Recuperar factores estructurados (con ramas None para ISFs)
+                        transition_groups = mdp.structured_transition(state, action, cache_key)
                         
-                        def _calculate_destinations(groups, current_idx=0, joint_prob=1.0, k=0):
-                            if k == len(groups):
-                                return [(current_idx, joint_prob)]
-                                
-                            destinations = []
-                            base_factor = factors[k]
-                            
-                            # Caso 1: BSF (Fluente Booleano de longitud 1)
-                            if len(base_factor) == 1:
-                                if not groups[k]:
-                                    p_true = 0.0
-                                else:
-                                    # groups[k] contiene [(Term, prob)]
-                                    term_obj, p_true = groups[k][0]
-                                    
-                                p_false = 1.0 - p_true
-                                if p_false > 1e-6: # Rama False (índice 0)
-                                    destinations.extend(_calculate_destinations(groups, current_idx + (0 * strides[k]), joint_prob * p_false, k + 1))
-                                if p_true > 1e-6:  # Rama True (índice 1)
-                                    destinations.extend(_calculate_destinations(groups, current_idx + (1 * strides[k]), joint_prob * p_true, k + 1))
-                            
-                            # Caso 2: ADS (Fluente Multivaluado de longitud > 1)
-                            else:
-                                for term_obj, prob in groups[k]:
-                                    # Limpiamos el término entrante (ej. 'pos(b, 1)' -> 'pos(b)')
-                                    term_clean = cls._format_state_name({term_obj: 1})
-                                    option_idx = 0
-                                    
-                                    # Buscamos su índice en el factor base (ej. iterando 'pos(a, 0)', 'pos(b, 0)'...)
-                                    for i, base_term in enumerate(base_factor):
-                                        if cls._format_state_name({base_term: 1}) == term_clean:
-                                            option_idx = i
-                                            break
-                                            
-                                    next_idx = current_idx + (option_idx * strides[k])
-                                    destinations.extend(_calculate_destinations(groups, next_idx, joint_prob * prob, k + 1))
-                                    
-                            return destinations
+                        # Fila densa inicializada en ceros
+                        row = [0.0] * len(states)
 
-                        dest_probs = _calculate_destinations(structured_transitions)
-                        for dest_idx, prob in dest_probs:
-                            if dest_idx < len(row):
-                                row[dest_idx] += prob
+                        def _calculate_destinations(groups, k=0, current_index=0, joint_prob=1.0):
+                            """
+                            Traversa el árbol estocástico multiplicando probabilidades
+                            y acumulando el índice absoluto del estado destino.
+                            """
+                            # Caso Base: Alcanzamos la última dimensión factorial
+                            if k == len(groups):
+                                row[current_index] += joint_prob
+                                return
                                 
+                            factor = groups[k]
+                            stride = strides[k]
+                            
+                            for term, prob in factor:
+                                # Delegamos la resolución del índice al esquema absoluto
+                                val = mdp.state_schema.get_local_index(k, term)
+                                # Llamada recursiva profundizando en el árbol
+                                _calculate_destinations(groups, k + 1, current_index + val * stride, joint_prob * prob)
+
+                        # Ejecutar la recursión para la fila actual poblada de transiciones
+                        _calculate_destinations(transition_groups)
                         matrix.append(row)
                     
+                    # 4. Formatear y escribir la matriz densa en el archivo usando Pandas
                     df = pd.DataFrame(matrix, index=state_names, columns=state_names)
                     f.write(df.to_string(float_format="{:.2f}".format))
                     f.write("\n\n")
-
+                    
         except IOError as e:
             print(f"[ERROR] Fallo al escribir el archivo de transición: {e}")
 

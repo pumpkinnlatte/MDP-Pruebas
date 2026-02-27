@@ -18,9 +18,10 @@ action(stay).
 
 %utilities
 utility(goal, 100).
+utility(stay, 0).
 
 %reward model
-goal :- not(pos(coor(1,3), 0)), pos(coor(1,3), 1).
+goal :- pos(coor(1,3), 1), not(terminal).
 
 %restriction
 terminal :- pos(coor(1,3), 0).
