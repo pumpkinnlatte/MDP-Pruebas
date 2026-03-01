@@ -1,0 +1,390 @@
+% ==============================================================================
+% FLUENTES DE ESTADO MULTIVALUADOS (enum) — MDP-ProbLog
+% ==============================================================================
+
+% Un fluente multivaluado (enum) es una variable de estado que toma exactamente
+% uno de N valores mutuamente excluyentes en cada instante del MDP. En el
+% FluentSchema se registra como un factor de base N (one-hot encoding).
+%
+% Requisito: un grupo enum requiere estrictamente N >= 2 opciones.
+% Un grupo con un solo elemento es una constante, no una variable estocastica,
+% y produce un FluentCardinalityError.
+
+% ==============================================================================
+% 1. DECLARACION EXPLICITA — state_fluent/2
+% ==============================================================================
+
+% Existen dos variantes de la etiqueta explicita:
+%
+%   enum      — para terminos de aridad 0 o 1. El unico argumento (posicion 0)
+%               se trata como el dominio mutable.
+%
+%   enum(N)   — para terminos de aridad >= 2. N indica la posicion (base 1) del
+%               argumento que porta el dominio mutable. Los demas argumentos
+%               se tratan como identificadores estaticos (llave de grupo).
+
+% ------------------------------------------------------------------------------
+% 1.1 Etiqueta 'enum' (aridad 0 o 1)
+% ------------------------------------------------------------------------------
+
+% Sintaxis:
+%   state_fluent(<termino>, enum).
+%   state_fluent(<termino>, enum) :- <cuerpo>.
+
+% --- Ejemplo 1.1a: Aridad 1 con disyuncion anotada como origen ---
+
+    state_fluent(semaforo(X), enum) :- colores(X).
+
+    1/3::colores(rojo);
+    1/3::colores(amarillo);
+    1/3::colores(verde).
+
+%   Grounding produce:
+    state_fluent(semaforo(rojo), enum).
+    state_fluent(semaforo(amarillo), enum).
+    state_fluent(semaforo(verde), enum).
+
+%   Resultado en el FluentSchema:
+%     Grupo enum semaforo: [rojo, amarillo, verde]  (base 3)
+
+% --- Ejemplo 1.1b: Aridad 1 con hechos estaticos como origen ---
+
+%   Cuando se usa la etiqueta explicita 'enum', el origen de los valores es
+%   irrelevante para el motor de inferencia. No importa si provienen de
+%   disyunciones anotadas o de hechos estaticos; el sistema los empaqueta
+%   en un grupo mutuamente excluyente.
+
+    state_fluent(modo(X), enum) :- modos(X).
+
+    modos(automatico).
+    modos(manual).
+    modos(apagado).
+
+%   Resultado: Grupo enum modo: [automatico, manual, apagado]  (base 3)
+
+% --- Ejemplo 1.1c: Etiqueta 'enum' con aridad >= 2 — ERROR ---
+
+%   Si el termino tiene aridad >= 2, la etiqueta 'enum' (sin indice) no es
+%   suficiente porque el motor no sabe cual argumento es el dominio mutable.
+
+    state_fluent(sensor(X, Y), enum) :- hab(X), tipo(Y).   % ERROR
+
+%   FluentArityError: Fluent 'sensor/2' has 2 arguments.
+%     Use enum(N) to indicate which argument (1-based) is the mutable domain.
+%     Example: state_fluent(sensor(...), enum(2))
+
+% ------------------------------------------------------------------------------
+% 1.2 Etiqueta 'enum(N)' (aridad >= 2)
+% ------------------------------------------------------------------------------
+
+% Sintaxis:
+%   state_fluent(<termino>, enum(N)).
+%   state_fluent(<termino>, enum(N)) :- <cuerpo>.
+%
+% N es un entero positivo (base 1) que indica la posicion del argumento mutable.
+% Los argumentos restantes se usan como llave de grupo (identificadores estaticos).
+
+% --- Ejemplo 1.2a: Argumento mutable en la ultima posicion ---
+
+    state_fluent(marketed(X, Y), enum(2)) :- person(X), marketing_type(Y).
+
+    person(thiago).
+    person(denis).
+    person(fabio).
+    person(liliane).
+
+    1/3::marketing_type(television);
+    1/3::marketing_type(internet);
+    1/3::marketing_type(none).
+
+%   Aqui N=2 indica que el segundo argumento (Y) es el dominio mutable.
+%   El primer argumento (X) es el identificador estatico (llave de grupo).
+%
+%   Resultado en el FluentSchema (4 grupos, base 3 cada uno):
+%     Grupo marketed(thiago):  [television, internet, none]
+%     Grupo marketed(denis):   [television, internet, none]
+%     Grupo marketed(fabio):   [television, internet, none]
+%     Grupo marketed(liliane): [television, internet, none]
+
+% --- Ejemplo 1.2b: Argumento mutable en la primera posicion ---
+
+%   El indice enum(N) permite colocar el dominio mutable en cualquier posicion.
+
+    state_fluent(clima(X, Y, Z), enum(1)) :- tipo(X), region(Y), mes(Z).
+
+    tipo(soleado).
+    tipo(lluvioso).
+
+    region(norte).
+
+    mes(enero).
+
+%   Aqui N=1 indica que el primer argumento (X) es el dominio mutable.
+%   Los argumentos Y y Z son la llave de grupo.
+%
+%   Grounding produce:
+    clima(soleado, norte, enero)
+    clima(lluvioso, norte, enero)
+
+%   Llave de grupo: clima(norte,enero)
+%   Resultado: Grupo clima(norte,enero): [soleado, lluvioso]  (base 2)
+
+% --- Ejemplo 1.2c: Argumento mutable en posicion intermedia ---
+
+    state_fluent(sensor(X, Y, Z), enum(2)) :- hab(X), medicion(Y), dispositivo(Z).
+
+    hab(sala).
+    hab(cocina).
+
+    1/3::medicion(alto);
+    1/3::medicion(bajo);
+    1/3::medicion(none).
+
+    dispositivo(termometro).
+    dispositivo(humo).
+
+%   N=2 indica que el segundo argumento (Y) es el dominio mutable.
+%   Los argumentos X y Z forman la llave de grupo.
+%
+%   Resultado en el FluentSchema:
+%     Grupo sensor(sala,termometro):   [alto, bajo, none]  (base 3)
+%     Grupo sensor(sala,humo):         [alto, bajo, none]  (base 3)
+%     Grupo sensor(cocina,termometro): [alto, bajo, none]  (base 3)
+%     Grupo sensor(cocina,humo):       [alto, bajo, none]  (base 3)
+
+% --- Ejemplo 1.2d: Indice fuera de rango — ERROR ---
+
+    state_fluent(pos(X, Y), enum(5)) :- coord(X), coord(Y).  % ERROR
+
+%   FluentArityError: enum(5) index is out of range for fluent 'pos/2'.
+%     Valid range: 1 to 2.
+
+% ==============================================================================
+% 2. DECLARACION IMPLICITA — state_fluent/1 (inferencia automatica)
+% ==============================================================================
+
+% Cuando se omite la etiqueta (state_fluent/1), el motor de inferencia clasifica
+% automaticamente el fluente. Esta via tiene restricciones estrictas de aridad.
+
+% ------------------------------------------------------------------------------
+% 2.1 Aridad 0 — siempre bool
+% ------------------------------------------------------------------------------
+
+%   Un termino sin argumentos no tiene dominio de valores sobre el cual iterar.
+%   El motor lo clasifica como bool. Ver bool_sintaxis.txt para detalles.
+
+% ------------------------------------------------------------------------------
+% 2.2 Aridad 1 — inferencia por vocabulario ADS
+% ------------------------------------------------------------------------------
+
+%   El motor recopila los valores en la posicion 0 de todas las instancias
+%   aterrizadas del fluente y verifica si son un subconjunto del vocabulario
+%   de alguna disyuncion anotada declarada en la ClauseDB.
+
+    state_fluent(semaforo(X)) :- colores(X).
+
+    1/3::colores(rojo);
+    1/3::colores(amarillo);
+    1/3::colores(verde).
+
+%   Valores en posicion 0: {rojo, amarillo, verde}
+%   Vocabulario ADS de colores/1: {rojo, amarillo, verde}
+%   {rojo, amarillo, verde} ⊆ {rojo, amarillo, verde} → true
+%   Se clasifica como enum.
+
+%   Si los valores NO provienen de una disyuncion anotada, se clasifica como
+%   bool. Ver bool_sintaxis.txt, seccion 2.2 para ese caso.
+
+% ------------------------------------------------------------------------------
+% 2.3 Aridad >= 2 — ERROR (no se permite inferencia)
+% ------------------------------------------------------------------------------
+
+%   REGLA: La inferencia automatica NO opera sobre terminos con 2 o mas
+%   argumentos. El motor emite un FluentArityError con una guia de correccion.
+
+    state_fluent(sensor(X, Y, Z)) :- hab(X), disp(Y), med(Z).   % ERROR
+
+%   FluentArityError: Fluent 'sensor/3' has 3 arguments and cannot be
+%   automatically classified. Use state_fluent/2:
+%     state_fluent(sensor(...), enum(N))
+%     state_fluent(sensor(...), bool)
+
+% ------------------------------------------------------------------------------
+% 2.4 Justificacion del limite de aridad
+% ------------------------------------------------------------------------------
+
+%   Esta decición elimina ambiguedad: para aridad >= 2, el usuario
+%   debe usar state_fluent/2 con enum(N) indicando explicitamente cual es el 
+%   dominio del fluente multivaluado.
+%   Para aridad 0-1, la inferencia sigue siendo automatica y no ambigua.
+
+% ==============================================================================
+% 3. CARDINALIDAD MINIMA
+% ==============================================================================
+
+% Todo grupo enum requiere estrictamente al menos 2 opciones en su dominio.
+% El sistema Mixed-Radix necesita una base b >= 2 para iterar un factor.
+
+% --- Ejemplo 3a: Declaracion invalida (cardinalidad insuficiente) ---
+
+    state_fluent(semaforo(X), enum) :- colores(X).
+
+    colores(verde).
+
+%   Resultado: Grupo semaforo tiene dominio {verde} — cardinalidad 1.
+%   FluentCardinalityError: Enum group 'semaforo' has only 1 option(s):
+%     {'verde'}. A mutually exclusive group requires at least 2 options.
+
+% --- Ejemplo 3b: Hardcoding sin dominio — invalido ---
+
+    state_fluent(semaforo(verde), enum).
+
+%   Resultado: Un unico termino aterrizado. Cardinalidad = 1. Mismo error.
+
+%   CONCLUSION: La unica manera de declarar fluentes enum robustos es mediante
+%   una regla parametrica que genere al menos 2 instancias aterrizadas con
+%   valores distintos en la posicion mutable.
+
+% ==============================================================================
+% 4. EMPAQUETAMIENTO MEDIANTE TERMINOS COMPUESTOS (COMPOUND TERMS)
+% ==============================================================================
+
+% Cuando el dominio mutable requiere multiples parametros combinados (como una
+% coordenada X, Y), se empaquetan dentro de un termino compuesto para reducir
+% la aridad del fluente a 1 y poder usar la via implicita o 'enum' sin indice.
+
+% --- Ejemplo 4a: Separacion directa — incorrecto ---
+
+    state_fluent(pos(X, Y)) :- coord(X), coord(Y).
+
+%   ERROR: Aridad 2 en modo implicito → FluentArityError.
+
+% --- Ejemplo 4b: Empaquetamiento con compound term — correcto ---
+
+    state_fluent(pos(celda(X, Y))) :- coord(X), coord(Y).
+
+    coord(1).
+    coord(2).
+
+%   El predicado pos/1 tiene un solo argumento: celda(X,Y).
+%   La llave de grupo es simplemente "pos" (sin argumentos estaticos).
+%
+%   Resultado:
+%     Grupo pos: [celda(1,1), celda(1,2), celda(2,1), celda(2,2)]  (base 4)
+%
+%   Esto garantiza que toda la coordenada bidimensional compita entre si por
+%   la exclusion mutua, permitiendo que un robot ocupe un solo espacio a la vez.
+
+% --- Ejemplo 4c: Alternativa explicita con enum(N) ---
+
+%   El mismo resultado se puede lograr sin empaquetamiento usando enum(N):
+
+    state_fluent(pos(X, Y), enum(1)) :- coord(X), coord(Y).
+
+%   Aqui X es un compound term coord_x y Y es coord_y, pero al usar enum(1)
+%   se indica que X es el dominio mutable. Esto produciria:
+%     Grupo pos(1): [1, 2]
+%     Grupo pos(2): [1, 2]
+%   ...lo cual NO es lo mismo que el empaquetamiento. Cada fila tendria su
+%   propio grupo de columnas, obligando al robot a existir en multiples filas.
+%
+%   CONCLUSION: Para dominios multidimensionales donde TODAS las dimensiones
+%   deben competir juntas, el empaquetamiento en compound term sigue siendo
+%   la solucion correcta. enum(N) es para cuando una dimension es genuinamente
+%   el dominio mutable y las demas son identificadores estaticos.
+
+% ==============================================================================
+% 5. COLAPSOS ESTRUCTURALES Y ANTIPATRONES
+% ==============================================================================
+
+% Un colapso estructural ocurre cuando el modelado incorrecto destruye la
+% independencia de las variables del MDP.
+
+% --- Ejemplo 5a: Multiples dominios mutables en un mismo fluente ---
+
+    state_fluent(tv_state(X, Y, Z), enum(3)) :- television(X), condition(Y), power(Z).
+
+    television(one).
+
+    0.5::condition(good); 0.5::condition(bad).
+    0.5::power(on); 0.5::power(off).
+
+%   Resultado con enum(3) (Z es el dominio mutable):
+%     Grupo tv_state(one,good): [on, off]
+%     Grupo tv_state(one,bad):  [on, off]
+%
+%   PROBLEMA: El sistema "clona" la television. Obliga al modelo a tener un
+%   estado de energia para cuando esta buena, y simultaneamente otro estado
+%   de energia para cuando esta mala. Destruye la independencia entre
+%   condition y power.
+%
+%   SOLUCION: Separar en fluentes distintos:
+
+    state_fluent(tv_cond(X, Y), enum(2)) :- television(X), condition(Y).
+    state_fluent(tv_power(X, Z), enum(2)) :- television(X), power(Z).
+
+%   Cada variable ahora itera independientemente en el Mixed-Radix.
+
+%   NOTA: El motor emite un Warning V7 (colapso estructural) cuando detecta
+%   que argumentos en posiciones NO marcadas como mutable tambien aparecen
+%   en el vocabulario de disyunciones anotadas. Este warning no detiene la
+%   compilacion pero alerta al usuario de una posible dependencia no modelada.
+
+% --- Ejemplo 5b: Duplicado entre modos implicito y explicito ---
+
+%   Si un fluente aparece tanto en state_fluent/1 como en state_fluent/2:
+
+    state_fluent(semaforo(X)) :- colores(X).
+    state_fluent(semaforo(X), enum) :- colores(X).
+
+%   El motor emite un Warning V6a y la declaracion explicita toma precedencia.
+
+% ==============================================================================
+% 6. RESUMEN DE ETIQUETAS Y REGLAS DE VALIDACION
+% ==============================================================================
+
+%   Etiqueta       Aridad     Comportamiento
+%   --------       ------     --------------------------------------------------------
+%   (implicito)    0          → siempre bool
+%   (implicito)    1          → inferencia por vocabulario ADS (bool o enum)
+%   (implicito)    >= 2       → FluentArityError
+%   bool           cualquiera → fuerza clasificacion booleana
+%   enum           0 o 1      → fuerza clasificacion enum (mutable_idx = 0)
+%   enum           >= 2       → FluentArityError (usar enum(N))
+%   enum(N)        >= N >= 1  → clasificacion enum con posicion mutable explicita
+%   enum(N)        N > aridad → FluentArityError (indice fuera de rango)
+
+%   Validaciones:
+%   V1 — Etiqueta desconocida (no bool, enum, enum(N)) → FluentDeclarationError
+%   V2 — Indice enum(N) fuera de rango                 → FluentArityError
+%   V3 — enum sin indice para aridad >= 2              → FluentArityError
+%   V4 — state_fluent/1 con aridad >= 2                → FluentArityError
+%   V5 — Cardinalidad del grupo < 2                    → FluentCardinalityError
+%   V6a — Duplicado entre modos implicito/explicito    → Warning
+%   V7 — Colapso estructural detectado                 → Warning
+
+% ==============================================================================
+% 7. ALCANCE Y LIMITACIONES DEL FRAMEWORK
+% ==============================================================================
+
+% 7.1 Flexibilidad: Representacion Relacional
+%   El uso de logica de primer orden permite definir espacios de estado mediante
+%   reglas parametricas. El motor genera el producto cartesiano automaticamente
+%   via el grounding de ProbLog. El framework soporta espacios de estado de
+%   bases mixtas (Mixed-Radix), orquestando simultaneamente variables booleanas
+%   (bool) y categoricas (enum).
+
+% 7.2 Limitacion Computacional: El Cuello de Botella del Grounding
+%   Aunque la sintaxis permite representar MDPs masivos con pocas lineas,
+%   ProbLog realiza un proceso de grounding que convierte las reglas abstractas
+%   en un circuito booleano proposicional. Si el conocimiento base contiene
+%   demasiadas entidades, el producto cartesiano se vuelve muy grande durante
+%   el proceso de compilacion (ClauseDB), antes de que inicie la iteracion de valor.
+
+% 7.3 El Problema del Marco (Frame Problem)
+%   ProbLog asume la suposicion del mundo cerrado (Closed-World Assumption).
+%   Lo que no se declara explicitamente como verdadero es falso por defecto.
+%   MDP-ProbLog no tiene un motor de inercia nativo. El usuario debe escribir
+%   reglas de persistencia explicitas para variables que no cambian bajo
+%   ciertas acciones:
+%     1.0::estado(X, 1) :- estado(X, 0), accion_irrelevante.

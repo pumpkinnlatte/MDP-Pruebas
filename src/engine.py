@@ -3,6 +3,7 @@ from problog.program import PrologString
 from problog.engine  import DefaultEngine
 from problog.logic   import Term, Constant, AnnotatedDisjunction
 from problog         import get_evaluatable
+from collections import defaultdict
 
 class Engine(object):
     """
@@ -239,49 +240,39 @@ class Engine(object):
 
     # Fluent inference
 
-    def get_ads_vocabulary(self):
+    def get_ads_metadata(self):
         """
-        Scans the ClauseDB extracting the vocabulary of values generated strictly by 
-        Annotated Disjunctions. It achieves this by first finding all 'choice' IDs 
-        that belong to a 'mutual_exclusive' constraint, and then extracting the 
-        arguments ONLY from those verified AD nodes.
-        """
-        import re
-        ad_origin_ids = set()
-        vocabulary = set()
+        Escanea la ClauseDB extrayendo los valores generados estrictamente por Disyunciones Anotadas (AD)
+        utilizando los nodos 'choice' nativos de ProbLog.
         
-        # FASE 1: Identificar los IDs de los choices que SÍ pertenecen a una Disyunción Anotada
-        # iter_raw() nos permite ver las restricciones lógicas generadas al final de la compilación
-        for node in self._db.iter_raw():
-            if str(node).startswith('mutual_exclusive'):
-                # Extraemos el ID de origen de la AD. 
-                # Ejemplo: de choice(19, 0, values(t)) extrae el '19'
-                matches = re.findall(r'choice\((\d+),', str(node))
-                for match in matches:
-                    ad_origin_ids.add(int(match))
+        Retorna un Índice Invertido O(1):
+        - dict mapeando cada valor (str) hacia un 'set' de group_ids de las AD que lo contienen.
+        """
+        from collections import defaultdict
+        inverted_index = defaultdict(set)
+        node_index = 0
+        
+        while True:
+            try:
+                node = self._db.get_node(node_index)
+                
+                if type(node).__name__ == 'choice':
+                    parent_id = node.group
+                    fact_term = node.functor.args[2] 
                     
-        # FASE 2: Extraer el vocabulario ÚNICAMENTE de los choices verificados
-        # Iteramos sobre los objetos nativos de la base de datos
-        for node in self._db._ClauseDB__nodes:
-            node_type = type(node).__name__
-            
-            if node_type == 'choice':
-                try:
-                    # node.functor es el objeto Term: choice(ID, Index, Fact)
-                    origin_id = int(node.functor.args[0])
-                    
-                    # Filtro Estricto: ¿Pertenece este choice a un grupo mutuamente excluyente?
-                    if origin_id in ad_origin_ids:
-                        fact_term = node.functor.args[2]
+                    if fact_term.args:
+                        # Término con argumentos (ej. colores(rojo) -> mapea 'rojo')
+                        for arg in fact_term.args:
+                            if hasattr(arg, 'is_var') and not arg.is_var():
+                                inverted_index[str(arg)].add(parent_id)
+                    else:
+                        # Átomo sin argumentos (ej. television -> mapea 'television')
+                        inverted_index[str(fact_term.functor)].add(parent_id)
                         
-                        # Extraemos los argumentos internos (ej. 't' de values(t))
-                        if hasattr(fact_term, 'args') and fact_term.args:
-                            for arg in fact_term.args:
-                                vocabulary.add(str(arg))
-                        else:
-                            # Si es una constante sin argumentos (ej. 1/2::television)
-                            vocabulary.add(str(fact_term))
-                except (IndexError, AttributeError, ValueError):
-                    pass
-                    
-        return vocabulary
+            except IndexError:
+                # Fin de la tabla de instrucciones
+                break
+                
+            node_index += 1
+            
+        return dict(inverted_index)

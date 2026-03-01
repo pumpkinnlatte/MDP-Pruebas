@@ -1,5 +1,5 @@
 % state fluents
-state_fluent(s(X), ads) :- states(X).
+state_fluent(s(X), enum) :- states(X).
 
 %actions
 action(study).

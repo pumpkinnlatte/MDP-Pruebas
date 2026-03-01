@@ -111,8 +111,10 @@ def show_state_space(schema):
 
 if __name__ == "__main__":
 
-    prog_dir = "tests/model_tests/mitchell_grid/grid02.pl"
+    prog_dir = "tests/model_tests/mitchell_grid/grid01.pl"
     #prog_dir = "tests/model_tests/student/student01.pl"
+    #prog_dir = "tests/semaforo.pl"
+    #prog_dir = "pruebas/vm1.pl"
  
     # Cargar modelo
     model_str = load_model(prog_dir)

@@ -52,9 +52,9 @@ class FluentSchema(object):
 
     Maintains an ordered list of *factors*, where each factor is either:
 
-    - A Boolean State Fluent (BSF): a single binary variable with
+    - A Boolean State Fluent (bool): a single binary variable with
       base 2, taking values in {0, 1}.
-    - An Annotated Disjunction group (ADS): a mutually exclusive set of
+    - An Enum group (enum): a mutually exclusive set of
       N options with base N, where exactly one option is active at a time
       (one-hot encoding).
 
@@ -76,7 +76,7 @@ class FluentSchema(object):
         self.__strides_cache = None
 
     
-    def add_bsf(self, term):
+    def add_bool(self, term):
         """
         Register a Boolean State Fluent (binary variable) as a new factor.
 
@@ -92,7 +92,7 @@ class FluentSchema(object):
 
     def add_group(self, terms):
         """
-        Register a mutually exclusive ADS group as a new factor.
+        Register a mutually exclusive enum group as a new factor.
 
         The factor is stored as a list of N terms with base N. Within the
         group, exactly one term is active at any given state (one-hot).
@@ -114,7 +114,7 @@ class FluentSchema(object):
 
         Each element is a list of one or more atemporal
         :class:`problog.logic.Term` objects. Single-element lists represent
-        BSF factors; multi-element lists represent ADS groups.
+        bool factors; multi-element lists represent enum groups.
 
         :rtype: list of list of problog.logic.Term
         """
@@ -160,7 +160,7 @@ class FluentSchema(object):
         Return a temporally-stamped copy of all factors for ``timestep``.
 
         Each atemporal term in every factor is converted to a temporal term
-        via :meth:`Fluent.create_fluent`. The structure (BSF vs. ADS) and
+        via :meth:`Fluent.create_fluent`. The structure (bool vs. enum) and
         registration order of the original schema are preserved.
 
         :param timestep: discrete timestep value to stamp onto every term
@@ -176,8 +176,8 @@ class FluentSchema(object):
         """
         Return a flat list of all registered atemporal terms in schema order.
 
-        The order matches the registration sequence: BSF terms appear in the
-        order they were added via :meth:`add_bsf`; ADS terms appear in the
+        The order matches the registration sequence: bool terms appear in the
+        order they were added via :meth:`add_bool`; enum terms appear in the
         order their group was added via :meth:`add_group`, with terms within
         each group in their original list order.
 
@@ -194,26 +194,26 @@ class FluentSchema(object):
 
         Three cases are handled:
 
-        - BSF False branch (`temporal_term is None`): returns `0`,
+        - Bool False branch (`temporal_term is None`): returns `0`,
           representing the inactive state of the binary variable. Value
           Iteration passes `None` explicitly for this branch.
-        - BSF True branch: strips the timestep argument from
+        - Bool True branch: strips the timestep argument from
           `temporal_term`, verifies it matches the single term in the
           factor, and returns `1`.
-        - ADS branch: strips the timestep argument and performs a linear
+        - Enum branch: strips the timestep argument and performs a linear
           search within the factor group, returning the matching position.
 
         :param factor_index: index of the factor within the schema
         :type factor_index: int
         :param temporal_term: a temporally-stamped fluent term, or ``None``
-                              for the False branch of an BSF factor
+                              for the False branch of a bool factor
         :type temporal_term: problog.logic.Term or None
         :raises ValueError: if the term does not match any entry in the factor
         :rtype: int
         """
         factor = self.__factors[factor_index]
 
-        # BSF False branch: None signals the inactive (0) side of a binary variable.
+        # Bool False branch: None signals the inactive (0) side of a binary variable.
         if temporal_term is None:
             return 0
 
@@ -221,28 +221,28 @@ class FluentSchema(object):
         base_term = temporal_term.with_args(*temporal_term.args[:-1])
 
         if len(factor) == 1:
-            # BSF True branch: verify the term matches and return index 1.
+            # Bool True branch: verify the term matches and return index 1.
             if factor[0] == base_term:
                 return 1
             raise ValueError(
-                f"Term '{base_term}' does not match BSF '{factor[0]}' "
+                f"Term '{base_term}' does not match bool factor '{factor[0]}' "
                 f"at factor index {factor_index}."
             )
 
-        # ADS branch: linear search within the mutually exclusive group.
+        # Enum branch: linear search within the mutually exclusive group.
         for i, term in enumerate(factor):
             if term == base_term:
                 return i
 
         raise ValueError(
-            f"Term '{base_term}' not found in ADS factor {factor_index}: {factor}."
+            f"Term '{base_term}' not found in enum factor {factor_index}: {factor}."
         )
 
     def __str__(self):
         """
         Return a human-readable summary of the schema structure.
 
-        Lists all BSF variables and ADS groups along with their bases and
+        Lists all Bool variables and Enum groups along with their bases and
         the total size of the resulting state space.
 
         :rtype: str
@@ -263,9 +263,9 @@ class FluentSchema(object):
             else:
                 ads_list.append((i, factor))
 
-        # BSF section
-        lines.append(f"[BSF] Boolean State Fluents ({len(isf_list)})")
-        lines.append("      Each iterates independently over {0, 1}.")
+        # bool section
+        lines.append(f"[BOOL] Boolean State Fluents ({len(isf_list)})")
+        lines.append("      Each iterates independently over {{0, 1}}.")
         if not isf_list:
             lines.append("      (none)")
         else:
@@ -273,8 +273,8 @@ class FluentSchema(object):
                 lines.append(f"      [ ] {term}")
         lines.append("")
 
-        # ADS section
-        lines.append(f"[ADS] Multivalued State Fluents ({len(ads_list)})")
+        # enum section
+        lines.append(f"[ENUM] Multivalued State Fluents ({len(ads_list)})")
         lines.append("      Exactly one option is true per group (one-hot).")
         if not ads_list:
             lines.append("      (none)")
@@ -361,8 +361,8 @@ class FactorSpace(object):
 
         For each factor, the active option index is extracted as
         `index % base`, then `index` is floor-divided by `base` to
-        process the next factor. BSF factors assign the active index
-        (0 or 1) directly to their single term; ADS factors assign 1 to
+        process the next factor. Bool factors assign the active index
+        (0 or 1) directly to their single term; enum factors assign 1 to
         the active option and 0 to all others.
 
         :param index: integer index in the range `[0, len(self))`
@@ -377,10 +377,10 @@ class FactorSpace(object):
             temp_index //= base
 
             if base == 2 and len(options) == 1:
-                # BSF: assign the active index (0 or 1) to the single term.
+                # Bool: assign the active index (0 or 1) to the single term.
                 valuation[options[0]] = active
             else:
-                # ADS: one-hot encoding over the option list.
+                # Enum: one-hot encoding over the option list.
                 for i, term in enumerate(options):
                     valuation[term] = 1 if i == active else 0
 
@@ -392,8 +392,8 @@ class FactorSpace(object):
         Encode `valuation` into a single integer using mixed-radix encoding.
 
         For each factor, the active option index is determined and multiplied
-        by the corresponding stride. BSF factors read their value directly;
-        ADS factors find the first term with value 1.
+        by the corresponding stride. Bool factors read their value directly;
+        enum factors find the first term with value 1.
 
         :param valuation: mapping of fluent terms to their current values
         :type valuation: dict of (problog.logic.Term, int)
@@ -433,7 +433,7 @@ class StateSpace(FactorSpace):
 
     Each element is an :class:`~collections.OrderedDict` mapping
     temporally-stamped fluent terms (at the given ``timestep``) to their
-    integer values (0 or 1 for BSF; 0/1 one-hot for ADS).
+    integer values (0 or 1 for Bool; 0/1 one-hot for Enum).
 
     :param schema: fluent schema defining the state space structure
     :type schema: FluentSchema

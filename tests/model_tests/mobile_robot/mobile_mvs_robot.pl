@@ -1,4 +1,4 @@
-state_fluent(pos(X), ads) :- grid(X).
+state_fluent(pos(X), enum) :- grid(X).
 
 %actions
 action(up).

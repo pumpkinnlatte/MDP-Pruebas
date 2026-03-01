@@ -1,13 +1,7 @@
 
 from src.engine import Engine as eng
 from src.fluent import Fluent, FluentSchema, StateSpace, ActionSpace
-from collections import defaultdict #
-
-from problog.logic import Term
-
-from problog.program import PrologString
-from problog.formula import LogicFormula
-
+from src.builder import FluentSchemaBuilder
 from src.debugger import MDPDebugger
 
 class MDP(object):
@@ -37,10 +31,13 @@ class MDP(object):
         # DEBUG: Tabla post-inyección 
         MDPDebugger.save_instructions_table(self._engine._db, filename="initial_instructions.txt")
     
-        # obtain the state fluent schema 
-        self.state_schema = self.__build_state_schema()
+        builder = FluentSchemaBuilder(self._engine)
+
+        # obtain valid state fluent schema 
+        self.state_schema = builder.build()
         print(self.state_schema)
 
+        self._next_state_factors = self.state_schema.get_factors_at(1)
         self._next_state_factors = self.state_schema.get_factors_at(1)
 
         # add dummy current state fluents
@@ -76,86 +73,7 @@ class MDP(object):
         # DEBUG: Tabla post-inyección 
         MDPDebugger.save_instructions_table(self._engine._db, filename="post_injection_instructions.txt")
 
-   
-    def __build_state_schema(self):
-        schema = FluentSchema()
-        
-        explicit_fluents = self._engine.assignments('state_fluent')
-        implicit_fluents = self._engine.declarations('state_fluent')
-        
-        # 1. Obtenemos el vocabulario estocástico del motor
-        ads_vocabulary = self._engine.get_ads_vocabulary()
-
-        print("ADS Vocabulary:", ads_vocabulary)
-
-        all_terms = {} 
-        
-        # 2. Procesamiento de fluentes explícitos
-        for term, value in explicit_fluents.items():
-            tag = str(value)
-            if tag in ('bsf', 'ads'):
-                all_terms[str(term)] = (term, tag)
-            else:
-                raise ValueError(f"Unknown tag '{tag}'")
-
-        # 3. Procesamiento de fluentes implícitos (La nueva inferencia O(1))
-        for term in implicit_fluents:
-            term_str = str(term)
-            if term_str not in all_terms:
-                if len(term.args) > 0:
-                    # Extraemos el último argumento (ej. el objeto 't' o 'rojo')
-                    last_arg = term.args[-1]
-                    
-                    # Comparamos su texto contra el vocabulario ADS
-                    if str(last_arg) in ads_vocabulary:
-                        fluent_type = 'ads'
-                    else:
-                        fluent_type = 'bsf'
-                else:
-                    fluent_type = 'bsf'
-                    
-                all_terms[term_str] = (term, fluent_type)
-
-        # 4. Agrupamiento y validación (se mantiene idéntico a su código original)
-        ads_accumulator = {}
-        for term_str in sorted(all_terms.keys()):
-            term, fluent_type = all_terms[term_str]
-            if fluent_type == 'ads':
-                group_key = self.__get_group_key(term)
-                if group_key not in ads_accumulator:
-                    ads_accumulator[group_key] = []
-                ads_accumulator[group_key].append(term)
-            elif fluent_type == 'bsf':
-                schema.add_bsf(term)
-
-        for key in sorted(ads_accumulator.keys()):
-            terms_group = sorted(ads_accumulator[key], key=str)
-            if len(terms_group) < 2:
-                raise ValueError(
-                    f"ADS group '{key}' has only {len(terms_group)} option. "
-                    "A mutually exclusive group requires at least 2 options."
-                )
-            schema.add_group(terms_group)
-
-        return schema
-
-    def __get_group_key(self, term):
-        """
-        Generate the grouping key for an annotated disjunction term.
-        Strategy: functor plus all arguments except the last one.
-
-        :param term: state fluent term
-        :type term: problog.logic.Term
-        :rtype: str
-        """
-        if len(term.args) == 0:
-            return term.functor
-
-        if len(term.args) == 1:
-            return term.functor
-
-        variable_args = term.args[:-1]
-        return "{}({})".format(term.functor, ','.join(map(str, variable_args)))
+    # MDP ELEMENTS    
 
     def state_fluents(self):
         """
@@ -188,7 +106,6 @@ class MDP(object):
         :rtype: list of problog.logic.Term sorted by string representation
         """
         return sorted(self._engine.declarations('action'), key=str)
-
 
     def structured_transition(self, state, action, cache=None):
         """

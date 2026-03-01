@@ -26,8 +26,8 @@ class ValueIteration(object):
 
     The implementation operates on integer-indexed state representations using
     a mixed-radix encoding defined by the :class:`~mdpproblog.fluent.FluentSchema`.
-    Both Boolean State Fluents (BSF, binary) and Annotated Disjunction groups
-    (ADS, multi-valued) are handled uniformly through the same Bellman backup.
+    Both Boolean State Fluents (Bool, binary) and Annotated Disjunction groups
+    (Enum, multi-valued) are handled uniformly through the same Bellman backup.
 
     :param mdp: MDP representation
     :type mdp: mdpproblog.MDP

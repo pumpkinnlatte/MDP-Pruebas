@@ -1,0 +1,148 @@
+% ==============================================================================
+% FLUENTES DE ESTADO BOOLEANOS (bool) — MDP-ProbLog
+% ==============================================================================
+
+% Un fluente booleano es una variable de estado binaria que puede ser verdadera
+% o falsa en cada instante del MDP. En el FluentSchema se registra como un
+% factor de base 2. Su ausencia durante la inferencia se interpreta como falso
+% (Closed-World Assumption de ProbLog).
+
+% ==============================================================================
+% 1. DECLARACION EXPLICITA — state_fluent/2 con etiqueta 'bool'
+% ==============================================================================
+
+% Sintaxis:
+%   state_fluent(<termino>, bool).
+%   state_fluent(<termino>, bool) :- <cuerpo>.
+
+% La etiqueta 'bool' indica explicitamente que el fluente es binario.
+% Es valida para terminos de cualquier aridad.
+
+% --- Ejemplo 1.1: Termino sin argumentos (aridad 0) ---
+
+    state_fluent(encendido, bool).
+
+%   Resultado: Un unico factor booleano 'encendido' con dominio {0, 1}.
+
+% --- Ejemplo 1.2: Termino con un argumento (aridad 1) ---
+
+    state_fluent(alarma(X), bool) :- zona(X).
+
+    zona(norte).
+    zona(sur).
+
+%   Grounding produce:
+    state_fluent(alarma(norte), bool).
+    state_fluent(alarma(sur), bool).
+
+%   Resultado en el FluentSchema:
+%     Factor bool: alarma(norte)  — dominio {0, 1}
+%     Factor bool: alarma(sur)    — dominio {0, 1}
+
+%   Cada instancia del fluente es una variable de Bernoulli independiente.
+%   El estado total contribuye 2 x 2 = 4 combinaciones al espacio de estados.
+
+% --- Ejemplo 1.3: Termino con multiples argumentos (aridad >= 2) ---
+
+    state_fluent(sensor_activo(X, Y), bool) :- habitacion(X), tipo(Y).
+
+    habitacion(sala).
+    habitacion(cocina).
+    tipo(humo).
+    tipo(temperatura).
+
+%   Grounding produce:
+    state_fluent(sensor_activo(sala, humo), bool).
+    state_fluent(sensor_activo(sala, temperatura), bool).
+    state_fluent(sensor_activo(cocina, humo), bool).
+    state_fluent(sensor_activo(cocina, temperatura), bool).
+
+%   Resultado: 4 factores booleanos independientes (espacio = 2^4 = 16).
+
+% ==============================================================================
+% 2. DECLARACION IMPLICITA — state_fluent/1 (inferencia automatica)
+% ==============================================================================
+
+% Sintaxis:
+%   state_fluent(<termino>).
+%   state_fluent(<termino>) :- <cuerpo>.
+
+% Cuando se omite la etiqueta de tipo (state_fluent/1), el motor de
+% inferencia clasifica automaticamente el fluente. La inferencia automatica
+% solo opera para terminos de aridad 0 o aridad 1.
+
+% REGLA: Si el termino tiene aridad >= 2, el motor NO intenta inferir y
+% emite un FluentArityError que indica al usuario usar state_fluent/2.
+
+% --- Ejemplo 2.1: Aridad 0 — siempre bool ---
+
+    state_fluent(encendido).
+
+%   Un termino sin argumentos no tiene dominio de valores. El motor lo
+%   clasifica como bool sin ambiguedad.
+
+% --- Ejemplo 2.2: Aridad 1, origen NO proveniente de disyuncion anotada ---
+
+    state_fluent(marketed(X)) :- person(X).
+
+    person(thiago).
+    person(denis).
+    person(fabio).
+    person(leliane).
+
+%   Grounding produce:
+    state_fluent(marketed(thiago)).
+    state_fluent(marketed(denis)).
+    state_fluent(marketed(fabio)).
+    state_fluent(marketed(leliane)).
+
+%   El motor verifica si los valores {thiago, denis, fabio, leliane} provienen
+%   de una disyuncion anotada. Como person/1 son hechos independientes (no ADs),
+%   el motor clasifica cada instancia como un factor booleano independiente.
+
+%   Resultado en el FluentSchema:
+%     Factor bool: marketed(thiago)   — dominio {0, 1}
+%     Factor bool: marketed(denis)    — dominio {0, 1}
+%     Factor bool: marketed(fabio)    — dominio {0, 1}
+%     Factor bool: marketed(leliane)  — dominio {0, 1}
+
+% ==============================================================================
+% 3. DIFERENCIA ENTRE state_fluent/1 Y state_fluent/2
+% ==============================================================================
+
+% ProbLog distingue predicados por nombre Y aridad. Por lo tanto:
+%   state_fluent/1 != state_fluent/2
+
+% Son predicados completamente independientes en la ClauseDB.
+% - state_fluent/1 activa el modo de inferencia automatica.
+% - state_fluent/2 activa el modo de declaracion explicita.
+
+% Si un mismo fluente aparece en ambos modos, el sistema emite un Warning (V6a)
+% y la declaracion explicita (state_fluent/2) toma precedencia.
+
+% ==============================================================================
+% 4. SEMANTICA EN EL MIXED-RADIX
+% ==============================================================================
+
+% Cada fluente booleano contribuye un factor de base 2 al FluentSchema.
+% En el FactorSpace:
+%   - Valor 0: el fluente es falso (inactivo).
+%   - Valor 1: el fluente es verdadero (activo).
+
+% Durante la evaluacion probabilistica:
+%   - Se inyecta como add_fact(term, 0.5) para preservar su presencia en el
+%     circuito compilado.
+%   - La evidencia del estado actual sustituye este 0.5 por 1.0 (verdadero)
+%     o 0.0 (falso) mediante el mecanismo de Weighted Model Counting.
+
+% ==============================================================================
+% 5. ERRORES Y VALIDACIONES RELACIONADOS
+% ==============================================================================
+
+% V1 — Etiqueta desconocida:
+%   Si se usa state_fluent(f, xyz) donde 'xyz' no es 'bool', 'enum', ni 'enum(N)',
+%   el sistema emite FluentDeclarationError.
+
+% V6a — Duplicado entre modos:
+%   Si un fluente aparece tanto en state_fluent/1 como en state_fluent/2,
+%   el sistema emite un Warning y usa la declaracion explicita.
