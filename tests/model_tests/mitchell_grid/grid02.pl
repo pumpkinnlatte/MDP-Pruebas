@@ -7,7 +7,7 @@ col(2).
 col(3).
 
 %state fluents
-state_fluent(position(coor(X,Y)), enum) :- row(X), col(Y).
+state_fluent(position(coor(X,Y)), multivalued) :- row(X), col(Y).
 
 %actions
 action(left).

@@ -88,7 +88,7 @@ class FactorSpace(object):
         For each factor, the active option index is extracted as
         `index % base`, then `index` is floor-divided by `base` to
         process the next factor. Bool factors assign the active index
-        (0 or 1) directly to their single term; enum factors assign 1 to
+        (0 or 1) directly to their single term; multivalued factors assign 1 to
         the active option and 0 to all others.
 
         :param index: integer index in the range `[0, len(self))`
@@ -106,7 +106,7 @@ class FactorSpace(object):
                 # Bool: assign the active index (0 or 1) to the single term.
                 valuation[options[0]] = active
             else:
-                # Enum: one-hot encoding over the option list.
+                # Multivalued: one-hot encoding over the option list.
                 for i, term in enumerate(options):
                     valuation[term] = 1 if i == active else 0
 
@@ -119,7 +119,7 @@ class FactorSpace(object):
 
         For each factor, the active option index is determined and multiplied
         by the corresponding stride. Bool factors read their value directly;
-        enum factors find the first term with value 1.
+        multivalued factors find the first term with value 1.
 
         :param valuation: mapping of fluent terms to their current values
         :type valuation: dict of (problog.logic.Term, int)
@@ -157,7 +157,7 @@ class StateSpace(FactorSpace):
 
     Each element is an :class:`~collections.OrderedDict` mapping
     temporally-stamped fluent terms (at the given ``timestep``) to their
-    integer values (0 or 1 for Bool; 0/1 one-hot for Enum).
+    integer values (0 or 1 for Bool; 0/1 one-hot for Multivalued).
 
     :param schema: fluent schema defining the state space structure
     :type schema: FluentSchema

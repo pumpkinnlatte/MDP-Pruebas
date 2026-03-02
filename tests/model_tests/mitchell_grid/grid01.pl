@@ -1,5 +1,5 @@
 %state fluents
-state_fluent(coor(X,Y), enum) :- row(X), col(Y).
+state_fluent(coor(X,Y), multivalued) :- row(X), col(Y).
 
 %actions
 action(left).

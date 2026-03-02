@@ -1,4 +1,4 @@
-# Arquitectura de MDP-ProbLog
+# Nueva arquitectura de MDP-ProbLog
 
 Documentación técnica de la arquitectura completa del sistema MDP-ProbLog: estructura de módulos, ciclo de vida computacional, motor de inferencia probabilística y algoritmo de resolución.
 
@@ -66,7 +66,7 @@ src.value_iteration
 
 src.fluent.classification
   ├── src.fluent.schema     → FluentSchema
-  └── src.fluent.exceptions → FluentDeclarationError, FluentAmbiguityError, FluentCardinalityError
+  └── src.fluent.exceptions → FluentDeclarationError, FluentCardinalityError
 
 src.fluent.spaces
   └── src.fluent.schema     → FluentSchema
@@ -139,7 +139,7 @@ Contiene toda la lógica del dominio de fluentes de estado. Organizado por respo
 |---|---|---|
 | `schema.py` | `Fluent`, `FluentSchema` | Estructuras de datos: factory de términos temporales y descriptor factorizado del espacio de estados |
 | `spaces.py` | `FactorSpace`, `StateSpace`, `ActionSpace` | Iteración mixed-radix: codificación/decodificación de valuaciones enteras sobre el espacio factorizado |
-| `classification.py` | `FluentClassifier` | Pipeline de clasificación: validación, inferencia de tipo (bool/enum) y ensamblaje del schema |
+| `classification.py` | `FluentClassifier` | Pipeline de clasificación: validación, inferencia de tipo (bool/multivalued) y ensamblaje del schema |
 | `exceptions.py` | `MDPProbLogError` y derivadas | Jerarquía de excepciones del dominio de fluentes |
 
 #### Representación de estados
@@ -147,7 +147,7 @@ Contiene toda la lógica del dominio de fluentes de estado. Organizado por respo
 El `FluentSchema` define el espacio de estados como un producto de factores independientes:
 
 - **Bool** (base 2): Variable binaria. Un factor por cada fluente booleano.
-- **Enum** (base N): Grupo mutuamente excluyente de N opciones. Exactamente una activa (codificación one-hot).
+- **Multivalued** (base N): Grupo mutuamente excluyente de N opciones. Exactamente una activa (codificación one-hot).
 
 El tamaño total del espacio de estados es el producto de todas las bases: `∏ b_i`. La iteración utiliza un sistema de numeración mixed-radix con strides posicionales `[1, b_1, b_1·b_2, ...]` para convertir entre índices enteros y valuaciones (OrderedDict de términos a valores).
 
@@ -187,7 +187,7 @@ Delega al `FluentClassifier` la extracción, validación e inferencia de todos l
 Para cada factor del schema, se inyectan hechos en la ClauseDB que representan el estado actual (timestep 0):
 
 - **Bool**: Se inyecta como hecho probabilístico con `add_fact(fluent_term, 0.5)`. La probabilidad 0.5 es neutral — será sustituida por evidencia (0.0 o 1.0) durante la evaluación.
-- **Enum**: Se inyecta como Disyunción Anotada con probabilidades uniformes `1/N` via `add_annotated_disjunction`. Esto crea nodos `choice` internos que actúan como raíces estocásticas del grafo.
+- **Multivalued**: Se inyecta como Disyunción Anotada con probabilidades uniformes `1/N` via `add_annotated_disjunction`. Esto crea nodos `choice` internos que actúan como raíces estocásticas del grafo.
 
 ```python
 for factor in self.state_schema.factors:
@@ -253,7 +253,7 @@ La evidencia es la unión de la valuación del estado actual y la valuación de 
 Transforma la salida plana de `transition()` en una estructura agrupada por factores del schema. Para cada factor:
 
 - **Bool**: Extrae `P(true)` del mapa de probabilidades y calcula `P(false) = 1 - P(true)`. Filtra ramas con probabilidad < 1e-6.
-- **Enum**: Extrae la probabilidad de cada opción del grupo. Filtra opciones con probabilidad < 1e-6.
+- **Multivalued**: Extrae la probabilidad de cada opción del grupo. Filtra opciones con probabilidad < 1e-6.
 
 El resultado es una lista de listas: `[[( Term|None, prob), ...], ...]`, donde cada lista interna representa un factor y cada tupla es una rama activa. El `None` en factores bool representa la rama False.
 
@@ -397,9 +397,9 @@ state_schema = classifier.classify()
 
 El `FluentClassifier` ejecuta un pipeline de tres sub-fases:
 
-1. **Validación estática** (V1-V3, V6a, V7): Verifica la sintaxis de las declaraciones explícitas.
+1. **Validación estática**: Verifica la sintaxis de las declaraciones.
 2. **Registro y clasificación**: Parsea fluentes explícitos (`state_fluent/2`) e infiere implícitos (`state_fluent/1`) consultando el índice invertido de ADs.
-3. **Distribución y construcción**: Registra factores bool y enum en el `FluentSchema`, validando la cardinalidad de los grupos.
+3. **Distribución y construcción**: Registra factores bool y multivalued en el `FluentSchema`, validando la cardinalidad de los grupos.
 
 > Documentación completa: [Arquitectura_inferencia_clasificacion_fluentes.md](Arquitectura_inferencia_clasificacion_fluentes.md)
 
@@ -408,7 +408,7 @@ El `FluentClassifier` ejecuta un pipeline de tres sub-fases:
 Se inyectan en la ClauseDB los hechos dummy que representan el estado actual:
 
 - **Bool**: `add_fact(term_t0, 0.5)` — Probabilidad neutral, sustituida por evidencia.
-- **Enum**: `add_annotated_disjunction(terms_t0, [1/N]*N)` — Crea nodos `choice`.
+- **Multivalued**: `add_annotated_disjunction(terms_t0, [1/N]*N)` — Crea nodos `choice`.
 
 Las acciones se inyectan de forma análoga como una AD uniforme.
 
@@ -489,7 +489,7 @@ El espacio de estados se define como el producto cartesiano de factores independ
 | Tipo | Base | Valuación | Ejemplo |
 |---|---|---|---|
 | Bool | 2 | `{term: 0\|1}` | `{alive: 1}` |
-| Enum | N | `{opt_1: 0, opt_2: 1, ..., opt_N: 0}` (one-hot) | `{pos(a): 0, pos(b): 1, pos(c): 0}` |
+| Multivalued | N | `{opt_1: 0, opt_2: 1, ..., opt_N: 0}` (one-hot) | `{pos(a): 0, pos(b): 1, pos(c): 0}` |
 
 ### Codificación mixed-radix
 
@@ -504,7 +504,7 @@ Donde `stride_k = ∏_{i<k} base_i`. Ejemplo para bases `[2, 3, 2]`:
 | Factor | Base | Stride | Rango local |
 |---|---|---|---|
 | 0 (bool) | 2 | 1 | {0, 1} |
-| 1 (enum) | 3 | 2 | {0, 1, 2} |
+| 1 (multivalued) | 3 | 2 | {0, 1, 2} |
 | 2 (bool) | 2 | 6 | {0, 1} |
 
 Total: 2 × 3 × 2 = 12 estados, indexados de 0 a 11.
@@ -522,7 +522,7 @@ Los fluentes del schema son atemporales. Para cada timestep, `Fluent.create_flue
 
 ### Consistencia probabilística
 
-1. **Exclusión mutua**: La inyección de ADs para factores enum garantiza que la suma de probabilidades de los nodos hijos sea exactamente 1.0.
+1. **Exclusión mutua**: La inyección de ADs para factores multivalued garantiza que la suma de probabilidades de los nodos hijos sea exactamente 1.0.
 2. **Preservación de nombres**: Los fluentes de estado actual (t=0) se incluyen en las queries de grounding para que ProbLog preserve sus identificadores.
 3. **Evidencia completa**: El evaluador recibe evidencia para *todos* los fluentes de estado actual y *una* acción, lo que determina completamente el estado y acción condicionantes.
 
@@ -534,4 +534,4 @@ Los fluentes del schema son atemporales. Para cada timestep, `Fluent.create_flue
 ### Transiciones factorizadas
 
 6. **Filtrado sparse**: Las ramas con probabilidad < 1e-6 se eliminan en `structured_transition`, reduciendo el costo de la recursión.
-7. **Cardinalidad mínima**: Todo grupo enum tiene al menos 2 opciones (validado por V5 en `FluentClassifier`).
+7. **Cardinalidad mínima**: Todo grupo multivalued tiene al menos 2 opciones (validado por V5 en `FluentClassifier`).

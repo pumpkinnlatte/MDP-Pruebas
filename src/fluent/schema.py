@@ -49,7 +49,7 @@ class FluentSchema(object):
 
     - A Boolean State Fluent (bool): a single binary variable with
       base 2, taking values in {0, 1}.
-    - An Enum group (enum): a mutually exclusive set of
+    - A Multivalued group (multivalued): a mutually exclusive set of
       N options with base N, where exactly one option is active at a time
       (one-hot encoding).
 
@@ -86,7 +86,7 @@ class FluentSchema(object):
 
     def add_group(self, terms):
         """
-        Register a mutually exclusive enum group as a new factor.
+        Register a mutually exclusive multivalued group as a new factor.
 
         The factor is stored as a list of N terms with base N. Within the
         group, exactly one term is active at any given state (one-hot).
@@ -108,7 +108,7 @@ class FluentSchema(object):
 
         Each element is a list of one or more atemporal
         :class:`problog.logic.Term` objects. Single-element lists represent
-        bool factors; multi-element lists represent enum groups.
+        bool factors; multi-element lists represent multivalued groups.
 
         :rtype: list of list of problog.logic.Term
         """
@@ -154,7 +154,7 @@ class FluentSchema(object):
         Return a temporally-stamped copy of all factors for ``timestep``.
 
         Each atemporal term in every factor is converted to a temporal term
-        via :meth:`Fluent.create_fluent`. The structure (bool vs. enum) and
+        via :meth:`Fluent.create_fluent`. The structure (bool vs. multivalued) and
         registration order of the original schema are preserved.
 
         :param timestep: discrete timestep value to stamp onto every term
@@ -171,7 +171,7 @@ class FluentSchema(object):
         Return a flat list of all registered atemporal terms in schema order.
 
         The order matches the registration sequence: bool terms appear in the
-        order they were added via :meth:`add_bool`; enum terms appear in the
+        order they were added via :meth:`add_bool`; multivalued terms appear in the
         order their group was added via :meth:`add_group`, with terms within
         each group in their original list order.
 
@@ -181,25 +181,14 @@ class FluentSchema(object):
 
     def get_local_index(self, factor_index, temporal_term):
         """
-        Return the local index of ``temporal_term`` within factor ``factor_index``.
+        Return the local index of `temporal_term` within factor `factor_index`.
 
         The local index determines the contribution of this factor to the
-        global mixed-radix state index: ``global_index += local_index * stride``.
-
-        Three cases are handled:
-
-        - Bool False branch (`temporal_term is None`): returns `0`,
-          representing the inactive state of the binary variable. Value
-          Iteration passes `None` explicitly for this branch.
-        - Bool True branch: strips the timestep argument from
-          `temporal_term`, verifies it matches the single term in the
-          factor, and returns `1`.
-        - Enum branch: strips the timestep argument and performs a linear
-          search within the factor group, returning the matching position.
+        global mixed-radix state index: `global_index += local_index * stride`.
 
         :param factor_index: index of the factor within the schema
         :type factor_index: int
-        :param temporal_term: a temporally-stamped fluent term, or ``None``
+        :param temporal_term: a temporally-stamped fluent term, or `None`
                               for the False branch of a bool factor
         :type temporal_term: problog.logic.Term or None
         :raises ValueError: if the term does not match any entry in the factor
@@ -223,20 +212,20 @@ class FluentSchema(object):
                 f"at factor index {factor_index}."
             )
 
-        # Enum branch: linear search within the mutually exclusive group.
+        # Multivalued branch: linear search within the mutually exclusive group.
         for i, term in enumerate(factor):
             if term == base_term:
                 return i
 
         raise ValueError(
-            f"Term '{base_term}' not found in enum factor {factor_index}: {factor}."
+            f"Term '{base_term}' not found in multivalued factor {factor_index}: {factor}."
         )
 
     def __str__(self):
         """
         Return a human-readable summary of the schema structure.
 
-        Lists all Bool variables and Enum groups along with their bases and
+        Lists all Bool variables and Multivalued groups along with their bases and
         the total size of the resulting state space.
 
         :rtype: str
@@ -267,8 +256,8 @@ class FluentSchema(object):
                 lines.append(f"      [ ] {term}")
         lines.append("")
 
-        # enum section
-        lines.append(f"[ENUM] Multivalued State Fluents ({len(ads_list)})")
+        # multivalued section
+        lines.append(f"[MULTIVALUED] Multivalued State Fluents ({len(ads_list)})")
         lines.append("      Exactly one option is true per group (one-hot).")
         if not ads_list:
             lines.append("      (none)")

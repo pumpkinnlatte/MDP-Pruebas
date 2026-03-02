@@ -7,18 +7,11 @@ class FluentDeclarationError(MDPProbLogError):
     Causas: etiqueta desconocida, índice mal formado."""
 
 
-class FluentAmbiguityError(MDPProbLogError):
-    """Ambigüedad irreducible en la clasificación de un fluente.
-    Causa: state_fluent/1 con aridad >= 2 donde al menos un argumento
-    proviene de una Disyunción Anotada. La intención (Interpretación A
-    o B) no puede determinarse sin declaración explícita."""
-
-
 class FluentInferenceError(MDPProbLogError):
     """Fallo en la inferencia automática (state_fluent/1).
     Causas: origen del argumento indeterminado o inconsistente."""
 
 
 class FluentCardinalityError(MDPProbLogError):
-    """Grupo enum con cardinalidad insuficiente.
-    Causa: grupo enum con menos de 2 opciones tras el grounding."""
+    """Grupo multivalued con cardinalidad insuficiente.
+    Causa: grupo multivalued con menos de 2 opciones tras el grounding."""
