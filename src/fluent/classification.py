@@ -1,14 +1,14 @@
-from src.fluent import FluentSchema
-from src.exceptions import (
+from src.fluent.schema import FluentSchema
+from src.fluent.exceptions import (
     FluentDeclarationError, FluentAmbiguityError,
     FluentCardinalityError
 )
 from collections import defaultdict
 import warnings
 
-class FluentSchemaBuilder(object):
+class FluentClassifier(object):
     """
-    Patrón Builder responsable de orquestar la extracción, inferencia, validación 
+    Responsable de orquestar la extracción, inferencia, validación
     y empaquetamiento de los fluentes de estado del MDP a partir de la ClauseDB.
     """
     def __init__(self, engine):
@@ -17,20 +17,20 @@ class FluentSchemaBuilder(object):
         self._implicit_fluents = self._engine.declarations('state_fluent')
         self._ads_inverted_index = self._engine.get_ads_metadata()
 
-    def build(self):
+    def classify(self):
         """
         Método orquestador principal. Retorna un FluentSchema validado.
         """
         schema = FluentSchema()
 
-        # 1. Validación estática 
+        # 1. Validación estática
         ads_vocab_keys = set(self._ads_inverted_index.keys())
         self._validate_fluent_declarations(self._explicit_fluents, self._implicit_fluents, ads_vocab_keys)
 
         # 2. Clasificación y Registro
         explicit_registry = self._register_explicit(self._explicit_fluents)
         implicit_registry = self._register_implicit(self._implicit_fluents, explicit_registry, self._ads_inverted_index)
-        
+
         full_registry = {**implicit_registry, **explicit_registry}
 
         # 3. Distribución y Construcción
@@ -38,13 +38,6 @@ class FluentSchemaBuilder(object):
         self._finalize_enums(schema, enum_acc, enum_idx)
 
         return schema
-
-    def _fetch_fluent_data(self):
-        """
-        Recolecta las declaraciones de fluentes y el índice estocástico desde el motor de inferencia.
-        """
-        
-        return explicit_fluents, implicit_fluents, ads_inverted_index
 
     def _register_explicit(self, explicit_fluents):
         """
@@ -62,7 +55,7 @@ class FluentSchemaBuilder(object):
         """
         registry = {}
         implicit_by_predicate = defaultdict(list)
-        
+
         for term in implicit_fluents:
             term_str = str(term)
             if term_str not in explicit_registry:
@@ -76,7 +69,7 @@ class FluentSchemaBuilder(object):
             except FluentAmbiguityError as e:
                 inference_errors.append(e)
                 continue
-            
+
             for term in grounded_terms:
                 registry[str(term)] = (term, fluent_type, None)
 
@@ -159,22 +152,22 @@ class FluentSchemaBuilder(object):
             values_at_pos = {str(t.args[pos]) for t in grounded_terms}
             if not values_at_pos:
                 continue
-            
+
             iterator = iter(values_at_pos)
-            
+
             # Inicializamos los grupos candidatos con el primer elemento
             first_val = next(iterator)
             common_groups = set(ads_inverted_index.get(first_val, set()))
-            
+
             if not common_groups:
                 continue
-                
+
             # Intersectamos matemáticamente con los grupos de los elementos restantes
             for val in iterator:
                 common_groups.intersection_update(ads_inverted_index.get(val, set()))
                 if not common_groups:
                     break
-                    
+
             # Si sobrevivió algún grupo en la intersección, la posición entera es estocástica
             if common_groups:
                 ad_positions.append(pos)
@@ -288,7 +281,7 @@ class FluentSchemaBuilder(object):
                     stacklevel=2
                 )
 
-        # V7: Structural collapse warning (BUG CORREGIDO)
+        # V7: Structural collapse warning
         for term, tag_value in explicit_fluents.items():
             tag_str = str(tag_value)
             if tag_str == 'bool' or tag_str == 'enum':
@@ -300,7 +293,6 @@ class FluentSchemaBuilder(object):
                     continue
 
                 for i, arg in enumerate(term.args):
-                    # all_values es ahora directamente ads_vocab (el set de llaves del índice invertido)
                     if i != mutable_idx and str(arg) in ads_vocab:
                         warnings.warn(
                             f"[V7] Fluent '{term}' declared as enum({mutable_idx + 1}), "

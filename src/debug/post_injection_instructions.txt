@@ -1,103 +1,108 @@
 === MDP-ProbLog Instructions Table ===
-Timestamp: 2026-02-28 20:16:00
-Total Nodes: 286
+Timestamp: 2026-02-28 21:01:20
+Total Nodes: 290
 ============================================================
 
 ID     | Instruction / Content
 ------------------------------------------------------------
 0      | _builtin_forall(V_0,V_1) :- \+(call(V_0), \+call(V_1))
-1      | state_fluent(coor(V_0,V_1),enum) :- row(V_0), col(V_1)
-2      | action(left)
-3      | action(right)
-4      | action(up)
-5      | action(down)
-6      | action(stay)
-7      | utility(goal,100)
-8      | goal :- \+coor(1,3,0), coor(1,3,1)
-9      | body_34(30,coor(1,2,1)) :- coor(1,1,0), right
-10     | 1.0::choice(30,0,coor(1,2,1))
-11     | coor(1,2,1) :- body_34(30,coor(1,2,1)), choice(30,0,coor(1,2,1))
-12     | body_45(41,coor(2,1,1)) :- coor(1,1,0), down
-13     | 1.0::choice(41,0,coor(2,1,1))
-14     | coor(2,1,1) :- body_45(41,coor(2,1,1)), choice(41,0,coor(2,1,1))
-15     | body_55(52,coor(1,3,1)) :- coor(1,2,0), right
-16     | 1.0::choice(52,0,coor(1,3,1))
-17     | coor(1,3,1) :- body_55(52,coor(1,3,1)), choice(52,0,coor(1,3,1))
-18     | body_66(62,coor(1,1,1)) :- coor(1,2,0), left
-19     | 1.0::choice(62,0,coor(1,1,1))
-20     | coor(1,1,1) :- body_66(62,coor(1,1,1)), choice(62,0,coor(1,1,1))
-21     | body_76(73,coor(2,2,1)) :- coor(1,2,0), down
-22     | 1.0::choice(73,0,coor(2,2,1))
-23     | coor(2,2,1) :- body_76(73,coor(2,2,1)), choice(73,0,coor(2,2,1))
-24     | body_87(83,coor(1,3,1)) :- coor(1,3,0), stay
-25     | 1.0::choice(83,0,coor(1,3,1))
-26     | coor(1,3,1) :- body_87(83,coor(1,3,1)), choice(83,0,coor(1,3,1))
-27     | body_97(94,coor(1,3,1)) :- coor(1,3,0), left
-28     | 1.0::choice(94,0,coor(1,3,1))
-29     | coor(1,3,1) :- body_97(94,coor(1,3,1)), choice(94,0,coor(1,3,1))
-30     | body_107(104,coor(1,3,1)) :- coor(1,3,0), right
-31     | 1.0::choice(104,0,coor(1,3,1))
-32     | coor(1,3,1) :- body_107(104,coor(1,3,1)), choice(104,0,coor(1,3,1))
-33     | body_118(114,coor(1,3,1)) :- coor(1,3,0), up
-34     | 1.0::choice(114,0,coor(1,3,1))
-35     | coor(1,3,1) :- body_118(114,coor(1,3,1)), choice(114,0,coor(1,3,1))
-36     | body_128(125,coor(1,3,1)) :- coor(1,3,0), down
-37     | 1.0::choice(125,0,coor(1,3,1))
-38     | coor(1,3,1) :- body_128(125,coor(1,3,1)), choice(125,0,coor(1,3,1))
-39     | body_138(135,coor(1,1,1)) :- coor(2,1,0), up
-40     | 1.0::choice(135,0,coor(1,1,1))
-41     | coor(1,1,1) :- body_138(135,coor(1,1,1)), choice(135,0,coor(1,1,1))
-42     | body_148(145,coor(2,2,1)) :- coor(2,1,0), right
-43     | 1.0::choice(145,0,coor(2,2,1))
-44     | coor(2,2,1) :- body_148(145,coor(2,2,1)), choice(145,0,coor(2,2,1))
-45     | body_158(155,coor(1,2,1)) :- coor(2,2,0), up
-46     | 1.0::choice(155,0,coor(1,2,1))
-47     | coor(1,2,1) :- body_158(155,coor(1,2,1)), choice(155,0,coor(1,2,1))
-48     | body_168(165,coor(2,1,1)) :- coor(2,2,0), left
-49     | 1.0::choice(165,0,coor(2,1,1))
-50     | coor(2,1,1) :- body_168(165,coor(2,1,1)), choice(165,0,coor(2,1,1))
-51     | body_178(175,coor(2,3,1)) :- coor(2,2,0), right
-52     | 1.0::choice(175,0,coor(2,3,1))
-53     | coor(2,3,1) :- body_178(175,coor(2,3,1)), choice(175,0,coor(2,3,1))
-54     | body_188(185,coor(1,3,1)) :- coor(2,3,0), up
-55     | 1.0::choice(185,0,coor(1,3,1))
-56     | coor(1,3,1) :- body_188(185,coor(1,3,1)), choice(185,0,coor(1,3,1))
-57     | body_198(195,coor(2,2,1)) :- coor(2,3,0), left
-58     | 1.0::choice(195,0,coor(2,2,1))
-59     | coor(2,2,1) :- body_198(195,coor(2,2,1)), choice(195,0,coor(2,2,1))
-60     | row(1)
-61     | row(2)
-62     | body_208(207,multi) :- true
-63     | 1/3::choice(207,0,col(1))
-64     | col(1) :- body_208(207,multi), choice(207,0,col(1))
-65     | 1/3::choice(207,1,col(2))
-66     | col(2) :- body_208(207,multi), choice(207,1,col(2))
-67     | 1/3::choice(207,2,col(3))
-68     | col(3) :- body_208(207,multi), choice(207,2,col(3))
-69     | body_226(225,multi) :- true
-70     | 0.166666666666667::choice(225,0,coor(1,1,0))
-71     | coor(1,1,0) :- body_226(225,multi), choice(225,0,coor(1,1,0))
-72     | 0.166666666666667::choice(225,1,coor(1,2,0))
-73     | coor(1,2,0) :- body_226(225,multi), choice(225,1,coor(1,2,0))
-74     | 0.166666666666667::choice(225,2,coor(1,3,0))
-75     | coor(1,3,0) :- body_226(225,multi), choice(225,2,coor(1,3,0))
-76     | 0.166666666666667::choice(225,3,coor(2,1,0))
-77     | coor(2,1,0) :- body_226(225,multi), choice(225,3,coor(2,1,0))
-78     | 0.166666666666667::choice(225,4,coor(2,2,0))
-79     | coor(2,2,0) :- body_226(225,multi), choice(225,4,coor(2,2,0))
-80     | 0.166666666666667::choice(225,5,coor(2,3,0))
-81     | coor(2,3,0) :- body_226(225,multi), choice(225,5,coor(2,3,0))
-82     | body_259(258,multi) :- true
-83     | 0.2::choice(258,0,down)
-84     | down :- body_259(258,multi), choice(258,0,down)
-85     | 0.2::choice(258,1,left)
-86     | left :- body_259(258,multi), choice(258,1,left)
-87     | 0.2::choice(258,2,right)
-88     | right :- body_259(258,multi), choice(258,2,right)
-89     | 0.2::choice(258,3,stay)
-90     | stay :- body_259(258,multi), choice(258,3,stay)
-91     | 0.2::choice(258,4,up)
-92     | up :- body_259(258,multi), choice(258,4,up)
-93     | mutual_exclusive([choice(207,0,col(1)), choice(207,1,col(2)), choice(207,2,col(3))])
-94     | mutual_exclusive([choice(225,0,coor(1,1,0)), choice(225,1,coor(1,2,0)), choice(225,2,coor(1,3,0)), choice(225,3,coor(2,1,0)), choice(225,4,coor(2,2,0)), choice(225,5,coor(2,3,0))])
-95     | mutual_exclusive([choice(258,0,down), choice(258,1,left), choice(258,2,right), choice(258,3,stay), choice(258,4,up)])
+1      | state_fluent(s(V_0),enum) :- states(V_0)
+2      | action(study)
+3      | action(exercise)
+4      | action(sleep)
+5      | action(relax)
+6      | action(quit)
+7      | action(pub)
+8      | utility(study_class1,-2)
+9      | utility(study_class2,-2)
+10     | utility(study_class3,10)
+11     | utility(class3_pub,1)
+12     | utility(class1_relax,-1)
+13     | utility(tv_relax,-1)
+14     | utility(class2_sleep,0)
+15     | study_class1 :- s(class,0), study
+16     | study_class2 :- s(football,0), study
+17     | study_class3 :- s(music,0), study
+18     | class1_relax :- s(class,0), relax
+19     | class2_sleep :- s(football,0), sleep
+20     | class3_pub :- s(music,0), pub
+21     | tv_relax :- s(tv,0), relax
+22     | tv_quit :- s(tv,0), quit
+23     | body_77(73,s(football,1)) :- s(class,0), exercise
+24     | 1.0::choice(73,0,s(football,1))
+25     | s(football,1) :- body_77(73,s(football,1)), choice(73,0,s(football,1))
+26     | body_87(84,s(tv,1)) :- s(class,0), relax
+27     | 1.0::choice(84,0,s(tv,1))
+28     | s(tv,1) :- body_87(84,s(tv,1)), choice(84,0,s(tv,1))
+29     | body_97(94,s(music,1)) :- s(football,0), study
+30     | 1.0::choice(94,0,s(music,1))
+31     | s(music,1) :- body_97(94,s(music,1)), choice(94,0,s(music,1))
+32     | body_107(104,s(sleep,1)) :- s(football,0), sleep
+33     | 1.0::choice(104,0,s(sleep,1))
+34     | s(sleep,1) :- body_107(104,s(sleep,1)), choice(104,0,s(sleep,1))
+35     | body_117(114,s(sleep,1)) :- s(music,0), study
+36     | 1.0::choice(114,0,s(sleep,1))
+37     | s(sleep,1) :- body_117(114,s(sleep,1)), choice(114,0,s(sleep,1))
+38     | body_127(124,multi) :- s(music,0), pub
+39     | 0.2::choice(124,0,s(class,1))
+40     | s(class,1) :- body_127(124,multi), choice(124,0,s(class,1))
+41     | 0.4::choice(124,1,s(football,1))
+42     | s(football,1) :- body_127(124,multi), choice(124,1,s(football,1))
+43     | 0.4::choice(124,2,s(music,1))
+44     | s(music,1) :- body_127(124,multi), choice(124,2,s(music,1))
+45     | body_147(144,s(tv,1)) :- s(tv,0), relax
+46     | 1.0::choice(144,0,s(tv,1))
+47     | s(tv,1) :- body_147(144,s(tv,1)), choice(144,0,s(tv,1))
+48     | body_157(154,s(class,1)) :- s(tv,0), quit
+49     | 1.0::choice(154,0,s(class,1))
+50     | s(class,1) :- body_157(154,s(class,1)), choice(154,0,s(class,1))
+51     | body_167(164,s(sleep,1)) :- s(sleep,0), study
+52     | 1.0::choice(164,0,s(sleep,1))
+53     | s(sleep,1) :- body_167(164,s(sleep,1)), choice(164,0,s(sleep,1))
+54     | body_177(174,s(sleep,1)) :- s(sleep,0), exercise
+55     | 1.0::choice(174,0,s(sleep,1))
+56     | s(sleep,1) :- body_177(174,s(sleep,1)), choice(174,0,s(sleep,1))
+57     | body_187(184,s(sleep,1)) :- s(sleep,0), quit
+58     | 1.0::choice(184,0,s(sleep,1))
+59     | s(sleep,1) :- body_187(184,s(sleep,1)), choice(184,0,s(sleep,1))
+60     | body_197(194,s(sleep,1)) :- s(sleep,0), relax
+61     | 1.0::choice(194,0,s(sleep,1))
+62     | s(sleep,1) :- body_197(194,s(sleep,1)), choice(194,0,s(sleep,1))
+63     | body_207(204,s(sleep,1)) :- s(sleep,0), sleep
+64     | 1.0::choice(204,0,s(sleep,1))
+65     | s(sleep,1) :- body_207(204,s(sleep,1)), choice(204,0,s(sleep,1))
+66     | body_217(214,s(sleep,1)) :- s(sleep,0), pub
+67     | 1.0::choice(214,0,s(sleep,1))
+68     | s(sleep,1) :- body_217(214,s(sleep,1)), choice(214,0,s(sleep,1))
+69     | states(class)
+70     | states(football)
+71     | states(music)
+72     | states(tv)
+73     | states(sleep)
+74     | body_230(229,multi) :- true
+75     | 0.2::choice(229,0,s(class,0))
+76     | s(class,0) :- body_230(229,multi), choice(229,0,s(class,0))
+77     | 0.2::choice(229,1,s(football,0))
+78     | s(football,0) :- body_230(229,multi), choice(229,1,s(football,0))
+79     | 0.2::choice(229,2,s(music,0))
+80     | s(music,0) :- body_230(229,multi), choice(229,2,s(music,0))
+81     | 0.2::choice(229,3,s(sleep,0))
+82     | s(sleep,0) :- body_230(229,multi), choice(229,3,s(sleep,0))
+83     | 0.2::choice(229,4,s(tv,0))
+84     | s(tv,0) :- body_230(229,multi), choice(229,4,s(tv,0))
+85     | body_258(257,multi) :- true
+86     | 0.166666666666667::choice(257,0,exercise)
+87     | exercise :- body_258(257,multi), choice(257,0,exercise)
+88     | 0.166666666666667::choice(257,1,pub)
+89     | pub :- body_258(257,multi), choice(257,1,pub)
+90     | 0.166666666666667::choice(257,2,quit)
+91     | quit :- body_258(257,multi), choice(257,2,quit)
+92     | 0.166666666666667::choice(257,3,relax)
+93     | relax :- body_258(257,multi), choice(257,3,relax)
+94     | 0.166666666666667::choice(257,4,sleep)
+95     | sleep :- body_258(257,multi), choice(257,4,sleep)
+96     | 0.166666666666667::choice(257,5,study)
+97     | study :- body_258(257,multi), choice(257,5,study)
+98     | mutual_exclusive([choice(124,0,s(class,1)), choice(124,1,s(football,1)), choice(124,2,s(music,1))])
+99     | mutual_exclusive([choice(229,0,s(class,0)), choice(229,1,s(football,0)), choice(229,2,s(music,0)), choice(229,3,s(sleep,0)), choice(229,4,s(tv,0))])
+100    | mutual_exclusive([choice(257,0,exercise), choice(257,1,pub), choice(257,2,quit), choice(257,3,relax), choice(257,4,sleep), choice(257,5,study)])

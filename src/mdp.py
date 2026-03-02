@@ -1,7 +1,7 @@
 
 from src.engine import Engine as eng
 from src.fluent import Fluent, FluentSchema, StateSpace, ActionSpace
-from src.builder import FluentSchemaBuilder
+from src.fluent import FluentClassifier
 from src.debugger import MDPDebugger
 
 class MDP(object):
@@ -31,10 +31,10 @@ class MDP(object):
         # DEBUG: Tabla post-inyección 
         MDPDebugger.save_instructions_table(self._engine._db, filename="initial_instructions.txt")
     
-        builder = FluentSchemaBuilder(self._engine)
+        classifier = FluentClassifier(self._engine)
 
-        # obtain valid state fluent schema 
-        self.state_schema = builder.build()
+        # obtain valid state fluent schema
+        self.state_schema = classifier.classify()
         print(self.state_schema)
 
         self._next_state_factors = self.state_schema.get_factors_at(1)
