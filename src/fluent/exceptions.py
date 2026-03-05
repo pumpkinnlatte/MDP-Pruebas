@@ -15,3 +15,10 @@ class FluentInferenceError(MDPProbLogError):
 class FluentCardinalityError(MDPProbLogError):
     """Grupo multivalued con cardinalidad insuficiente.
     Causa: grupo multivalued con menos de 2 opciones tras el grounding."""
+
+
+class FluentMassConservationError(MDPProbLogError):
+    """Violación del Segundo Axioma de Kolmogórov (Conservación de Masa).
+    Causa: las probabilidades marginales de un grupo factorizado no suman 1.0
+    (multivaluado) o caen fuera de [0, 1] (booleano), indicando reglas
+    ProbLog inconsistentes o sobredeterminadas."""

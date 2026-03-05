@@ -16,6 +16,8 @@ class FluentClassifier(object):
         self._implicit_fluents = self._engine.declarations('state_fluent')
         self._ads_inverted_index = self._engine.get_ads_metadata()
 
+        print(self._ads_inverted_index)  # DEBUG: Ver el índice invertido de ADs
+
     def classify(self):
         """
         Método orquestador principal. Retorna un FluentSchema validado.

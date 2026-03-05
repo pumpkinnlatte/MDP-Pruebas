@@ -76,7 +76,7 @@
 % 2.2 Aridad 1 — inferencia por vocabulario ADS
 % ------------------------------------------------------------------------------
 
-%   El motor recopila los valores en la posicion 0 de todas las instancias
+%   El motor recopila los valores ende todas las instancias
 %   aterrizadas del fluente y verifica si son un subconjunto del vocabulario
 %   de alguna disyuncion anotada declarada en la ClauseDB.
 
@@ -133,74 +133,29 @@
 
 %   Resultado: Un unico termino aterrizado. Cardinalidad = 1. Mismo error.
 
-%   CONCLUSION: La unica manera de declarar fluentes multivalued robustos es mediante
+%   CONCLUSION: La manera de declarar fluentes multivaluados es mediante
 %   una regla parametrica que genere al menos 2 instancias aterrizadas con
 %   valores distintos en la posicion mutable.
 
-% ==============================================================================
-% 4. EMPAQUETAMIENTO MEDIANTE TERMINOS COMPUESTOS (COMPOUND TERMS)
-% ==============================================================================
-
-% Cuando el dominio mutable requiere multiples parametros combinados (como una
-% coordenada X, Y), se empaquetan dentro de un termino compuesto para reducir
-% la aridad del fluente a 1 y poder usar la via implicita o 'multivalued'.
-
-% --- Ejemplo 4a: Separacion directa — valido ---
-
-    state_fluent(pos(X, Y)) :- coord(X), coord(Y).
-
-%   Con aridad >= 2 en modo implicito, el motor infiere automaticamente.
-%   Si los valores provienen de disyunciones anotadas, todos los groundings
-%   forman un unico grupo mutuamente excluyente; de lo contrario, bool.
-
-% --- Ejemplo 4b: Empaquetamiento con compound term — correcto ---
-
-    state_fluent(pos(celda(X, Y))) :- coord(X), coord(Y).
-
-    coord(1).
-    coord(2).
-
-%   El predicado pos/1 tiene un solo argumento: celda(X,Y).
-%   La llave de grupo es simplemente "pos" (sin argumentos estaticos).
-%
-%   Resultado:
-%     Grupo pos: [celda(1,1), celda(1,2), celda(2,1), celda(2,2)]  (base 4)
-%
-%   Esto garantiza que toda la coordenada bidimensional compita entre si por
-%   la exclusion mutua, permitiendo que un robot ocupe un solo espacio a la vez.
-
-% --- Ejemplo 4c: Alternativa explicita con multivalued ---
-
-%   Tambien se puede declarar directamente con la etiqueta multivalued:
-
-    state_fluent(pos(X, Y), multivalued) :- coord(X), coord(Y).
-
-%   Con multivalued, todos los groundings forman un unico grupo mutuamente
-%   excluyente:
-%     Grupo pos: [pos(1,1), pos(1,2), pos(2,1), pos(2,2)]  (base 4)
-%
-%   Esto es equivalente al empaquetamiento con compound term del ejemplo 4b.
-%   Ambas formas garantizan que toda la coordenada bidimensional compita
-%   entre si por la exclusion mutua.
 
 % ==============================================================================
-% 5. COLAPSOS ESTRUCTURALES Y ANTIPATRONES
+% 4. COLAPSOS ESTRUCTURALES Y ANTIPATRONES
 % ==============================================================================
 
 % Un colapso estructural ocurre cuando el modelado incorrecto destruye la
 % independencia de las variables del MDP.
 
-% --- Ejemplo 5a: Duplicado entre modos implicito y explicito ---
+% --- Ejemplo 5b: Duplicado entre modos implicito y explicito ---
 
 %   Si un fluente aparece tanto en state_fluent/1 como en state_fluent/2:
 
     state_fluent(semaforo(X)) :- colores(X).
     state_fluent(semaforo(X), multivalued) :- colores(X).
 
-%   El motor emite un Warning V6a y la declaracion explicita toma precedencia.
+%   El motor emite un Warning V3 y la declaracion explicita toma precedencia.
 
 % ==============================================================================
-% 6. RESUMEN DE ETIQUETAS Y REGLAS DE VALIDACION
+% 5. RESUMEN DE ETIQUETAS Y REGLAS DE VALIDACION
 % ==============================================================================
 
 %   Etiqueta       Aridad     Comportamiento
@@ -214,31 +169,42 @@
 
 %   Validaciones:
 %   V1 — Etiqueta desconocida (no bool, multivalued)   → FluentDeclarationError
-%   V5 — Cardinalidad del grupo < 2                    → FluentCardinalityError
-%   V6a — Duplicado entre modos implicito/explicito    → Warning
+%   V2 — Cardinalidad del grupo < 2                    → FluentCardinalityError
+%   V3 — Duplicado entre modos implicito/explicito    → Warning
 
 % ==============================================================================
-% 7. ALCANCE Y LIMITACIONES DEL FRAMEWORK
+% 6. ALCANCE Y LIMITACIONES DEL FRAMEWORK
 % ==============================================================================
 
-% 7.1 Flexibilidad: Representacion Relacional
+% 6.1 Flexibilidad: Representacion Relacional
 %   El uso de logica de primer orden permite definir espacios de estado mediante
 %   reglas parametricas. El motor genera el producto cartesiano automaticamente
-%   via el grounding de ProbLog. El framework soporta espacios de estado de
-%   bases mixtas (Mixed-Radix), orquestando simultaneamente variables booleanas
-%   (bool) y categoricas (multivalued).
+%   via el grounding de ProbLog. 
 
-% 7.2 Limitacion Computacional: El Cuello de Botella del Grounding
+% 7.2 Limitacion Computacional:
 %   Aunque la sintaxis permite representar MDPs masivos con pocas lineas,
 %   ProbLog realiza un proceso de grounding que convierte las reglas abstractas
 %   en un circuito booleano proposicional. Si el conocimiento base contiene
 %   demasiadas entidades, el producto cartesiano se vuelve muy grande durante
 %   el proceso de compilacion (ClauseDB), antes de que inicie la iteracion de valor.
 
-% 7.3 El Problema del Marco (Frame Problem)
+% 7.3 Reglas de persistencia
 %   ProbLog asume la suposicion del mundo cerrado (Closed-World Assumption).
 %   Lo que no se declara explicitamente como verdadero es falso por defecto.
 %   MDP-ProbLog no tiene un motor de inercia nativo. El usuario debe escribir
 %   reglas de persistencia explicitas para variables que no cambian bajo
 %   ciertas acciones:
 %     1.0::estado(X, 1) :- estado(X, 0), accion_irrelevante.
+
+%   En el caso de los fluentes multivaluados, estas reglas deben de contemplar
+%   todos los valores posibles del fluente y sus valores de probabilidad:
+
+    0.50::estado(<valor1>, 1);
+    0.00::estado(<valor2>, 1);
+    0.25::estado(<valor3>, 1);
+    0.25::estado(<valor4>, 1) :- estado(X, 0), accion.
+
+    0.0::estado(<valor1>, 1);
+    0.0::estado(<valor2>, 1);
+    0.0::estado(<valor3>, 1);
+    1.0::estado(X, 1) :- estado(X, 0), accion_irrelevante.

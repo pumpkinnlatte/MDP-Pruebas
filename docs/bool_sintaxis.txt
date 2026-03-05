@@ -117,7 +117,7 @@
 % - state_fluent/1 activa el modo de inferencia automatica.
 % - state_fluent/2 activa el modo de declaracion explicita.
 
-% Si un mismo fluente aparece en ambos modos, el sistema emite un Warning (V6a)
+% Si un mismo fluente aparece en ambos modos, el sistema emite un Warning (V3)
 % y la declaracion explicita (state_fluent/2) toma precedencia.
 
 % ==============================================================================
@@ -140,9 +140,9 @@
 % ==============================================================================
 
 % V1 — Etiqueta desconocida:
-%   Si se usa state_fluent(f, xyz) donde 'xyz' no es 'bool', 'enum', ni 'enum(N)',
+%   Si se usa state_fluent(f, xyz) donde 'xyz' no es 'bool' ni 'multivalued',https://classroom.google.com/u/1/c/Njk2OTAzMjE1OTYx
 %   el sistema emite FluentDeclarationError.
 
-% V6a — Duplicado entre modos:
+% V3 — Duplicado entre modos:
 %   Si un fluente aparece tanto en state_fluent/1 como en state_fluent/2,
 %   el sistema emite un Warning y usa la declaracion explicita.
