@@ -36,7 +36,7 @@ class ValueIteration(object):
     def __init__(self, mdp):
         self._mdp = mdp
 
-    def run(self, gamma=0.9, epsilon=0.1, audit=True, audit_tolerance=1e-9):
+    def run(self, gamma=0.9, epsilon=0.1, audit=False, audit_tolerance=1e-9):
         """
         Execute value iteration until convergence.
         Return optimal value function, greedy policy and number

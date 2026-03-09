@@ -41,12 +41,13 @@ def show_state_space(schema):
 
 if __name__ == "__main__":
 
-    #prog_dir = "tests/model_tests/mitchell_grid/grid01.pl"
+    #prog_dir = "tests/model_tests/mitchell_grid/base_models/gridMultivalued.pl"
     #prog_dir = "tests/model_tests/student/student01.pl"
     #prog_dir = "tests/semaforo.pl"
-    prog_dir = "tests/model_tests/rn_gridworld/rn_gridworld01.pl"
-    #prog_dir = "nuevo.pl"
- 
+    #prog_dir = "tests/model_tests/rn_gridworld/rn_gridworld01.pl"
+    #prog_dir = "tests/model_tests/mitchell_grid/boolean/boolean_grid02.pl"
+    prog_dir = "tests/model_tests/mitchell_grid/multi-factor/multi_factor_grid06.pl"
+
     # Cargar modelo
     model_str = load_model(prog_dir)
 
@@ -61,7 +62,7 @@ if __name__ == "__main__":
 
     # VALUE ITERATION
     start = time.perf_counter()     
-    V, policy, Q_table, V_history, iterations = solve_model(mdp, 1.0, 1e-5)
+    V, policy, Q_table, V_history, iterations = solve_model(mdp, 0.9, 0.1)
     end = time.perf_counter()
     uptime = end - start
 

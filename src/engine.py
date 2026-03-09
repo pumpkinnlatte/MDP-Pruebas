@@ -203,11 +203,13 @@ class Engine(object):
         """
         self._gp = self._engine.ground_all(self._db, queries=queries)
     
-    def compile(self, terms=[]):
+    def compile(self, terms=[], backend=None):
 
-        """ 
+        """
         Crea una base de conocimiento compilada a partir de un programa aterrizado.
         Retorna una distribución de `terms` a nodos en la base de conocimiento compilada.
+
+        :param backend: None (d-DNNF por defecto) | 'sdd' | 'bdd'
         """
 
         """
@@ -216,9 +218,11 @@ class Engine(object):
 
         :param terms: list of predicates
         :type terms: list of problog.logic.Term
+        :param backend: evaluatable backend name, None for default d-DNNF
+        :type backend: str or None
         :rtype: dict of (problog.logic.Term, int)
         """
-        self._knowledge = get_evaluatable(None).create_from(self._gp)
+        self._knowledge = get_evaluatable(backend).create_from(self._gp)
         term2node = {}
         for term in terms:
             term2node[term] = self._knowledge.get_node_by_name(term)

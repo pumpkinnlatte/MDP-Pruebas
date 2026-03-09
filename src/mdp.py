@@ -1,4 +1,6 @@
 
+import time
+
 from src.engine import Engine as eng
 from src.fluent import Fluent, FluentSchema, StateSpace, ActionSpace
 from src.fluent import FluentClassifier
@@ -14,8 +16,11 @@ class MDP(object):
     """
 
     #01. Inicialización.
-    def __init__(self, model):
+    def __init__(self, model, epsilon_thr=1e-6, backend=None):
         self._model = model
+        self.epsilon_thr = epsilon_thr
+        self.backend = backend
+        self.timings = {}
         self._engine = eng(model)  #Se envía el modelo en str al engine
         self.__transition_cache = {}
         self.__reward_cache = {}
@@ -65,10 +70,14 @@ class MDP(object):
 
         queries = list(set(self.__utilities) | set(next_state_fluents) | set(actions) | set(current_state_fluents))
 
+        t0 = time.perf_counter()
         self._engine.relevant_ground(queries)
+        self.timings['t_ground'] = time.perf_counter() - t0
 
-        self.__next_state_queries = self._engine.compile(next_state_fluents)
-        self.__reward_queries = self._engine.compile(self.__utilities)
+        t0 = time.perf_counter()
+        self.__next_state_queries = self._engine.compile(next_state_fluents, backend=self.backend)
+        self.__reward_queries     = self._engine.compile(self.__utilities,    backend=self.backend)
+        self.timings['t_compile'] = time.perf_counter() - t0
 
         # DEBUG: Tabla post-inyección 
         MDPDebugger.save_instructions_table(self._engine._db, filename="post_injection_instructions.txt")
@@ -128,9 +137,9 @@ class MDP(object):
                 p_false = 1.0 - p_true
                 
                 # Inyección de ramas con masa probabilística válida
-                if p_false > 1e-6:
+                if p_false > self.epsilon_thr:
                     group_data.append((None, p_false))
-                if p_true > 1e-6:
+                if p_true > self.epsilon_thr:
                     group_data.append((term, p_true))
             
             # Si el esquema dicta que es un grupo ADS (> 1 elemento)
@@ -138,7 +147,7 @@ class MDP(object):
                 for term in factor_template:
                     p = prob_map.get(str(term), 0.0)
                     # Filtro de matrices dispersas (Sparse filter)
-                    if p > 1e-6:
+                    if p > self.epsilon_thr:
                         group_data.append((term, p))
                         
             structured_result.append(group_data)
