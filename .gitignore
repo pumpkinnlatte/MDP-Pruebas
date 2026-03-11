@@ -5,3 +5,4 @@ pruebas
 src/debug/
 .pytest_cache/
 .vscode/
+CLAUDE.md
