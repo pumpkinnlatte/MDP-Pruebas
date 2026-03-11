@@ -14,13 +14,17 @@ transiciones crudas. Todas las corridas posteriores (exacta y
 aproximadas) operan con cache hits al 100%.
 """
 
+import os
 import sys
 import time
+
+project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, project_root)
+
 from src.mdp import MDP
 from src.auditor import MDPAuditor
 from src.value_iteration import ValueIteration
 from src.fluent import StateSpace, ActionSpace
-
 
 def load_model(path):
     with open(path, 'r') as f:

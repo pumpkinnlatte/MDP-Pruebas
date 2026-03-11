@@ -7,8 +7,13 @@ para verificar que las reglas de transición del usuario respetan
 la masa unitaria en cada factor del estado siguiente.
 """
 
+import os
 import sys
 import time
+
+project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, project_root)
+
 from src.mdp import MDP
 from src.auditor import MDPAuditor
 

@@ -24,6 +24,11 @@ class MDP(object):
         self._engine = eng(model)  #Se envía el modelo en str al engine
         self.__transition_cache = {}
         self.__reward_cache = {}
+        # Contadores WMC (solo llamadas reales al circuito, excluye cache hits)
+        self._wmc_n_transition = 0
+        self._wmc_t_transition = 0.0
+        self._wmc_n_reward     = 0
+        self._wmc_t_reward     = 0.0
         self.__prepare()
 
     def __prepare(self):
@@ -191,7 +196,11 @@ class MDP(object):
         """
         evidence = state.copy()
         evidence.update(action)
-        return self._engine.evaluate(self.__next_state_queries, evidence)
+        _t0 = time.perf_counter()
+        result = self._engine.evaluate(self.__next_state_queries, evidence)
+        self._wmc_t_transition += time.perf_counter() - _t0
+        self._wmc_n_transition += 1
+        return result
 
     def transition_model(self):
         """
@@ -250,12 +259,41 @@ class MDP(object):
         """
 
         evidence = state.copy()
-        evidence.update(action)     
+        evidence.update(action)
+        _t0 = time.perf_counter()
+        raw = self._engine.evaluate(self.__reward_queries, evidence)
+        self._wmc_t_reward += time.perf_counter() - _t0
+        self._wmc_n_reward += 1
         total = 0
-        for term, prob in self._engine.evaluate(self.__reward_queries, evidence):
+        for term, prob in raw:
             total += prob * self.__utilities[term].value
         return total
 
+
+    def reset_wmc_stats(self):
+        """Resetea los contadores de evaluaciones WMC (para aislar una fase de medición)."""
+        self._wmc_n_transition = 0
+        self._wmc_t_transition = 0.0
+        self._wmc_n_reward     = 0
+        self._wmc_t_reward     = 0.0
+
+    def get_wmc_stats(self):
+        """
+        Retorna estadísticas de evaluaciones WMC reales (excluye cache hits).
+
+        :rtype: dict con n_wmc_transition, t_wmc_transition, t_per_transition,
+                         n_wmc_reward, t_wmc_reward, t_per_reward
+        """
+        n_t = self._wmc_n_transition
+        n_r = self._wmc_n_reward
+        return {
+            'n_wmc_transition':  n_t,
+            't_wmc_transition':  self._wmc_t_transition,
+            't_per_transition':  self._wmc_t_transition / n_t if n_t > 0 else 0.0,
+            'n_wmc_reward':      n_r,
+            't_wmc_reward':      self._wmc_t_reward,
+            't_per_reward':      self._wmc_t_reward / n_r if n_r > 0 else 0.0,
+        }
 
     #Devuelve el modelo de recompensas de todas las transiciones validas.
     def reward_model(self):

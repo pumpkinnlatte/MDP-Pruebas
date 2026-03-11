@@ -1,59 +1,92 @@
 """
-Fase 3: Analisis de Explosion de Treewidth y Densificacion Proposicional (Proposicion 7.1).
+Experimento Fase 3: Explosión de Treewidth y Densificación Proposicional
+=========================================================================
 
-Somete a verificacion empirica las predicciones teoricas:
-  - Eq. 17: |vars| = sum(b_k') para un factor de base N
-  - Sec. 7.2: T_compile = O(|phi| * 2^tw(phi))
+Valida empíricamente la Proposición 7.1 y la Sección 7.2 de:
+  docs/validacion_matematica_fluentes_multivaluados.md
 
-Experimento A: Barrido de cardinalidad N (1 factor multivaluado)
-  Dominio "Ruleta de N Caras": color(X), base N, transiciones uniformes.
+── Qué se comprueba ────────────────────────────────────────────────────────
 
-Experimento B: Multi-factor vs Mono-factor (mismo |S|)
-  Compara 1 factor base N^2 vs 2 factores base N.
+  Proposición 7.1 (Ec. 17):
+      |vars| = Σ b_k'   donde b_k' = 1 (bool) o N (multivaluado)
+      → gp_atoms debe crecer ~linealmente con N (α ≈ 1.0)
 
-Arquitectura:
-  - Monkey-patching de Engine para timing granular (sin modificar framework)
-  - Aislamiento por subproceso (multiprocessing) contra OOM/timeout
-  - Extraccion defensiva de metricas d-DNNF
-  - Escritura incremental de CSV (flush por fila)
+  Sección 7.2 (Complejidad de compilación):
+      T_compile = O(|φ| · 2^tw(φ))
+      → t_compile debe crecer super-polinomialmente con N (α >> 1, creciente)
+      → circuit_nodes crece como O(N²) o más (α ≈ 2 o mayor)
+
+── Experimentos ────────────────────────────────────────────────────────────
+
+  A — Barrido de cardinalidad (1 factor multivaluado):
+      Dominio "Ruleta de N Caras". Verifica Prop 7.1 y Sec 7.2 directamente.
+
+  B — Mono-factor vs Bi-factor (mismo |S|):
+      Compara 1 factor de base N² vs 2 factores de base N con |S| = N².
+      La factorización debería reducir el treewidth efectivo: si el bi-factor
+      compila más rápido con el mismo |S|, el treewidth es el factor limitante,
+      no el tamaño del espacio de estados.
+
+── Filosofía ───────────────────────────────────────────────────────────────
+
+  Mismo patrón que orquestador.py:
+    - Skip-if-exists por CSV (reanuda tras interrupción)
+    - Aislamiento por subproceso con timeout y detección de OOM
+    - Exportación CSV incremental
+    - CLI con argparse
+
+  Sin monkey-patching: MDP.timings ya expone t_ground y t_compile.
+
+── Uso ─────────────────────────────────────────────────────────────────────
+
+  python exp/experimento_fase3.py --exp A
+  python exp/experimento_fase3.py --exp A B --timeout 300 --runs 5
+  python exp/experimento_fase3.py --exp A --N_values 2 5 10 20 50
+  python exp/experimento_fase3.py --exp B --N_bi 3 4 5 10
+  python exp/experimento_fase3.py --exp A --compilers ddnnf sdd
 """
 
+import os
 import sys
+import io
 import time
 import math
-import csv
-import io
-import multiprocessing as mp
+import argparse
+import multiprocessing
+
+import pandas as pd
+
+project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, project_root)
+
+from src.mdp import MDP
 
 
 # ---------------------------------------------------------------------------
-# Generacion programatica de modelos ProbLog
+# Generadores de modelos ProbLog
 # ---------------------------------------------------------------------------
 
 def generate_roulette(N):
-    """Genera modelo ProbLog de ruleta de N caras (1 factor, base N)."""
+    """Ruleta de N caras: 1 factor multivaluado de base N, 1 acción.
+
+    Este es el dominio mínimo para aislar el impacto de la cardinalidad del
+    fluente sobre el circuito compilado. Cada 'giro' produce cualquier color
+    con probabilidad uniforme 1/N (transición totalmente entrópica).
+    """
     values = [f"c{i}" for i in range(1, N + 1)]
     lines = []
 
-    # AD de valores
     ad_parts = "; ".join(f"1/{N}::c_values({v})" for v in values)
     lines.append(f"{ad_parts}.")
     lines.append("")
-
-    # Declaracion del fluente
     lines.append("state_fluent(color(X), multivalued) :- c_values(X).")
     lines.append("")
-
-    # Accion
     lines.append("action(spin).")
     lines.append("")
-
-    # Utilidad minima
     lines.append("utility(cost, -1).")
     lines.append("cost.")
     lines.append("")
 
-    # Transiciones: N reglas de N cabezas (uniforme)
     heads = "; ".join(f"1/{N}::color({v}, 1)" for v in values)
     for src in values:
         lines.append(f"{heads} :- color({src}, 0), spin.")
@@ -62,40 +95,35 @@ def generate_roulette(N):
 
 
 def generate_two_roulettes(N):
-    """Genera modelo ProbLog con 2 factores independientes de base N."""
+    """Dos ruletas independientes de base N: 2 factores, |S| = N².
+
+    Usado en Exp B para comparar con mono-factor de base N².
+    La independencia de los dos fluentes debería reducir el treewidth efectivo
+    respecto a un único fluente de base N² con las mismas N² ruedas.
+    """
     c_values = [f"c{i}" for i in range(1, N + 1)]
     f_values = [f"f{i}" for i in range(1, N + 1)]
     lines = []
 
-    # ADs de valores
     ad_c = "; ".join(f"1/{N}::c_values({v})" for v in c_values)
     ad_f = "; ".join(f"1/{N}::f_values({v})" for v in f_values)
     lines.append(f"{ad_c}.")
     lines.append(f"{ad_f}.")
     lines.append("")
-
-    # Declaraciones de fluentes
     lines.append("state_fluent(color(X), multivalued) :- c_values(X).")
     lines.append("state_fluent(forma(Y), multivalued) :- f_values(Y).")
     lines.append("")
-
-    # Accion
     lines.append("action(spin).")
     lines.append("")
-
-    # Utilidad minima
     lines.append("utility(cost, -1).")
     lines.append("cost.")
     lines.append("")
 
-    # Transiciones de color (N reglas, independientes)
     c_heads = "; ".join(f"1/{N}::color({v}, 1)" for v in c_values)
     for src in c_values:
         lines.append(f"{c_heads} :- color({src}, 0), spin.")
-
     lines.append("")
 
-    # Transiciones de forma (N reglas, independientes)
     f_heads = "; ".join(f"1/{N}::forma({v}, 1)" for v in f_values)
     for src in f_values:
         lines.append(f"{f_heads} :- forma({src}, 0), spin.")
@@ -104,417 +132,417 @@ def generate_two_roulettes(N):
 
 
 # ---------------------------------------------------------------------------
-# Extraccion defensiva de metricas d-DNNF
+# Definición de tareas
 # ---------------------------------------------------------------------------
 
-def extract_ddnnf_metrics(engine):
-    """Extraccion defensiva de metricas del circuito compilado."""
-    metrics = {
-        'gp_atoms': None,
-        'ddnnf_nodes': None,
-        'ddnnf_edges': None,
-        'ddnnf_atom_count': None,
-    }
+# Valores por defecto para cada experimento
+DEFAULT_N_A  = [2, 3, 5, 8, 10, 15, 20, 30, 40, 50, 75, 100, 125]
+DEFAULT_N_BI = [3, 4, 5, 10]   # N_mono_B = [N² for N in DEFAULT_N_BI] = [9,16,25,100]
 
-    # Metricas del ground program (seguro)
+COLS = [
+    'experiment', 'N', 'S', 'generator', 'compiler', 'run_id',
+    'n_states', 'n_actions',
+    't_prepare', 't_ground', 't_compile',
+    'gp_atoms', 'circuit_nodes', 'circuit_edges',
+    'status', 'error_msg',
+]
+
+CSV_PATH = 'resultados/fase3_treewidth.csv'
+
+
+def generate_tasks(exp_ids, compilers, run_ids, N_values_A=None, N_bi=None):
+    """Genera lista de dicts con cada combinación a ejecutar."""
+    N_a   = N_values_A or DEFAULT_N_A
+    N_bi_ = N_bi       or DEFAULT_N_BI
+    N_mono_b = [n * n for n in N_bi_]
+
+    tasks = []
+    for exp_id in exp_ids:
+        if exp_id == 'A':
+            configs = [('mono', n, n) for n in N_a]
+        elif exp_id == 'B_mono':
+            configs = [('mono', n, n) for n in N_mono_b]
+        elif exp_id == 'B_bi':
+            configs = [('bi', n, n * n) for n in N_bi_]
+        else:
+            continue
+
+        for generator, N, S in configs:
+            for compiler in compilers:
+                for run_id in run_ids:
+                    tasks.append({
+                        'experiment': exp_id,
+                        'N': N,
+                        'S': S,
+                        'generator': generator,
+                        'compiler': compiler,
+                        'run_id': run_id,
+                    })
+    return tasks
+
+
+def task_key(task):
+    return (task['experiment'], task['N'], task['generator'],
+            task['compiler'], task['run_id'])
+
+
+# ---------------------------------------------------------------------------
+# Skip-if-exists
+# ---------------------------------------------------------------------------
+
+def load_completed(csv_path):
+    """Lee el CSV y retorna el set de claves de tareas con status=success."""
+    if not os.path.exists(csv_path):
+        return set()
     try:
-        metrics['gp_atoms'] = engine._gp.atomcount
-    except AttributeError:
+        df = pd.read_csv(csv_path)
+        ok = df[df['status'] == 'success']
+        return set(zip(ok.experiment, ok.N, ok.generator, ok.compiler, ok.run_id))
+    except Exception:
+        return set()
+
+
+# ---------------------------------------------------------------------------
+# Extracción de métricas del circuito
+# ---------------------------------------------------------------------------
+
+def extract_circuit_metrics(engine):
+    """Extracción defensiva de métricas del circuito compilado (d-DNNF o SDD)."""
+    m = {'gp_atoms': None, 'circuit_nodes': None, 'circuit_edges': None}
+
+    try:
+        m['gp_atoms'] = engine._gp.atomcount
+    except Exception:
         pass
 
-    # Metricas del circuito compilado (defensivo)
     knowledge = engine._knowledge
     if knowledge is None:
-        return metrics
+        return m
 
-    # atomcount (API publica en algunos backends)
+    # d-DNNF: acceso directo por _nodes
     try:
-        metrics['ddnnf_atom_count'] = knowledge.atomcount
+        nodes = knowledge._nodes
+        m['circuit_nodes'] = len(nodes)
+        m['circuit_edges'] = sum(
+            len(n.children) for n in nodes if hasattr(n, 'children')
+        )
+        return m
     except AttributeError:
         pass
 
-    # Conteo de nodos via _nodes (d-DNNF backend)
+    # SDD u otro backend: fallback a DOT
     try:
-        nodes = knowledge._nodes
-        metrics['ddnnf_nodes'] = len(nodes)
+        dot = knowledge.to_dot()
+        m['circuit_nodes'] = dot.count('[label=')
+        m['circuit_edges'] = dot.count('->')
+    except Exception:
+        pass
 
-        edges = 0
-        for node in nodes:
-            if hasattr(node, 'children'):
-                edges += len(node.children)
-        metrics['ddnnf_edges'] = edges
-    except (AttributeError, TypeError):
-        # Backend SDD u otro — fallback a to_dot()
-        try:
-            dot_str = knowledge.to_dot()
-            metrics['ddnnf_nodes'] = dot_str.count('[label=')
-            metrics['ddnnf_edges'] = dot_str.count('->')
-        except (AttributeError, TypeError):
-            pass
-
-    return metrics
+    return m
 
 
 # ---------------------------------------------------------------------------
-# Trial execution (runs inside subprocess)
+# Worker aislado (ejecuta dentro de subproceso)
 # ---------------------------------------------------------------------------
 
-def run_single_trial(model_str):
-    """Ejecuta un trial completo: monkey-patch, MDP(), metricas, unpatch."""
-    from src.engine import Engine
-    from src.mdp import MDP
+def _worker(task, queue):
+    """Ejecuta UNA tarea en proceso aislado y envía resultado por queue.
 
-    # Guardar metodos originales
-    orig_ground = Engine.relevant_ground
-    orig_compile = Engine.compile
-    timings = {}
-
-    # Monkey-patch con timing
-    def timed_ground(self, queries):
-        t0 = time.perf_counter()
-        result = orig_ground(self, queries)
-        timings['t_ground'] = time.perf_counter() - t0
-        return result
-
-    def timed_compile(self, terms=[]):
-        t0 = time.perf_counter()
-        result = orig_compile(self, terms)
-        timings['t_compile'] = time.perf_counter() - t0
-        return result
-
-    Engine.relevant_ground = timed_ground
-    Engine.compile = timed_compile
-
-    # Suprimir prints del FluentClassifier y MDP.__prepare__
-    old_stdout = sys.stdout
+    No usa monkey-patching: MDP.timings ya expone t_ground y t_compile
+    tras la construcción del objeto.
+    """
+    old_stdout, old_stderr = sys.stdout, sys.stderr
     sys.stdout = io.StringIO()
-
+    sys.stderr = io.StringIO()
     try:
+        N         = task['N']
+        generator = task['generator']
+        compiler  = task['compiler']
+
+        model_str = (generate_roulette(N) if generator == 'mono'
+                     else generate_two_roulettes(N))
+        backend = None if compiler == 'ddnnf' else compiler
+
         t0 = time.perf_counter()
-        mdp = MDP(model_str, epsilon_thr=0.0)
-        t_total = time.perf_counter() - t0
+        mdp = MDP(model_str, backend=backend)
+        t_prepare = time.perf_counter() - t0
+
+        metrics = extract_circuit_metrics(mdp._engine)
+
+        queue.put({
+            'status':    'success',
+            'error_msg': None,
+            't_prepare': t_prepare,
+            't_ground':  mdp.timings.get('t_ground'),
+            't_compile': mdp.timings.get('t_compile'),
+            'n_states':  mdp.state_schema.total_states,
+            'n_actions': len(mdp.actions()),
+            **metrics,
+        })
+
+    except Exception as e:
+        queue.put({'status': 'error', 'error_msg': str(e)})
     finally:
         sys.stdout = old_stdout
-        Engine.relevant_ground = orig_ground
-        Engine.compile = orig_compile
-
-    metrics = extract_ddnnf_metrics(mdp._engine)
-    metrics['t_ground'] = timings.get('t_ground')
-    metrics['t_compile'] = timings.get('t_compile')
-    metrics['t_total'] = t_total
-    metrics['status'] = 'OK'
-
-    return metrics
+        sys.stderr = old_stderr
 
 
-def _trial_worker(model_str, result_queue):
-    """Worker para subproceso aislado."""
-    try:
-        metrics = run_single_trial(model_str)
-        result_queue.put(('ok', metrics))
-    except Exception as e:
-        result_queue.put(('error', str(e)))
+def run_task_safe(task, timeout_seconds=120):
+    """Lanza _worker en subproceso aislado con timeout. Retorna dict de métricas."""
+    q = multiprocessing.Queue()
+    p = multiprocessing.Process(target=_worker, args=(task, q))
+    p.start()
+    p.join(timeout=timeout_seconds)
 
+    if p.is_alive():
+        p.terminate()
+        p.join(timeout=5)
+        if p.is_alive():
+            p.kill()
+            p.join()
+        return {'status': 'timeout', 'error_msg': f'exceeded {timeout_seconds}s'}
 
-def run_trial_safe(model_str, timeout=120):
-    """Ejecuta trial en subproceso aislado con timeout y deteccion OOM."""
-    queue = mp.Queue()
-    proc = mp.Process(target=_trial_worker, args=(model_str, queue))
-    proc.start()
-    proc.join(timeout=timeout)
+    if p.exitcode != 0:
+        signal_num = -p.exitcode if p.exitcode < 0 else p.exitcode
+        return {'status': 'oom_killed', 'error_msg': f'signal={signal_num}'}
 
-    if proc.is_alive():
-        proc.terminate()
-        proc.join(timeout=5)
-        if proc.is_alive():
-            proc.kill()
-            proc.join()
-        return {'status': 'TIMEOUT'}
+    if not q.empty():
+        return q.get()
 
-    if proc.exitcode != 0:
-        signal_num = -proc.exitcode if proc.exitcode < 0 else proc.exitcode
-        return {'status': f'OOM/KILLED (signal={signal_num})'}
-
-    if not queue.empty():
-        status, data = queue.get_nowait()
-        if status == 'ok':
-            return data
-        else:
-            return {'status': f'ERROR: {data}'}
-
-    return {'status': 'UNKNOWN'}
+    return {'status': 'error', 'error_msg': 'worker died without output'}
 
 
 # ---------------------------------------------------------------------------
-# Barrido parametrico
+# Exportación CSV incremental
 # ---------------------------------------------------------------------------
 
-def run_sweep(N_values, generator_fn, label, repetitions=3, timeout=120):
-    """Barrido parametrico sobre N. Retorna lista de resultados."""
-    print(f"\n{'=' * 80}")
-    print(f" {label}")
-    print(f" N values: {N_values}")
-    print(f" Repetitions: {repetitions}, Timeout: {timeout}s")
-    print(f"{'=' * 80}")
+def append_result(csv_path, task, result):
+    row = {**task, **result}
+    row = {k: row.get(k) for k in COLS}
+    df = pd.DataFrame([row])
+    write_header = not os.path.exists(csv_path)
+    df.to_csv(csv_path, mode='a', header=write_header, index=False)
 
-    results = []
 
-    for N in N_values:
-        model_str = generator_fn(N)
-        trial_metrics = []
+# ---------------------------------------------------------------------------
+# Análisis y resumen teórico
+# ---------------------------------------------------------------------------
 
-        for rep in range(repetitions):
-            metrics = run_trial_safe(model_str, timeout=timeout)
+def _alpha(v1, v2, N1, N2):
+    """Pendiente log-log entre dos puntos (exponente de escalado)."""
+    if v1 and v2 and v1 > 0 and v2 > 0 and N1 != N2:
+        return math.log(v2 / v1) / math.log(N2 / N1)
+    return None
 
-            if metrics.get('status') != 'OK':
-                print(f"  [N={N:>4}, rep={rep+1}] {metrics.get('status', 'FAILED')}")
-                break
+
+def print_summary(csv_path):
+    """Imprime tabla de resultados y verifica predicciones teóricas."""
+    if not os.path.exists(csv_path):
+        return
+
+    df = pd.read_csv(csv_path)
+    ok = df[df['status'] == 'success']
+    if ok.empty:
+        return
+
+    exp_labels = {
+        'A':      'Exp A — Barrido de cardinalidad (1 factor multivaluado)',
+        'B_mono': 'Exp B_mono — Referencia mono-factor',
+        'B_bi':   'Exp B_bi  — Bi-factor (2 factores, misma |S|)',
+    }
+
+    for exp_id in ['A', 'B_mono', 'B_bi']:
+        sub = ok[ok['experiment'] == exp_id]
+        if sub.empty:
+            continue
+
+        # Mediana sobre runs y compilers para cada N
+        avg = (sub.groupby('N')[
+            ['S', 't_compile', 't_ground', 't_prepare', 'circuit_nodes', 'gp_atoms']
+        ].median().reset_index().sort_values('N'))
+
+        rows = avg.to_dict('records')
+
+        # Calcular alpha(t_compile) entre puntos consecutivos
+        for i in range(len(rows)):
+            if i == 0:
+                rows[i]['alpha_tc']  = None
+                rows[i]['alpha_nds'] = None
             else:
-                trial_metrics.append(metrics)
+                N1, N2 = rows[i-1]['N'], rows[i]['N']
+                rows[i]['alpha_tc']  = _alpha(rows[i-1]['t_compile'],  rows[i]['t_compile'],  N1, N2)
+                rows[i]['alpha_nds'] = _alpha(rows[i-1]['circuit_nodes'], rows[i]['circuit_nodes'], N1, N2)
 
-        if not trial_metrics:
-            # Todas las repeticiones fallaron
-            results.append({
-                'N': N,
-                'status': metrics.get('status', 'FAILED'),
-            })
-            print(f"  [N={N:>4}] ABORTADO: {metrics.get('status')}")
+        print(f"\n{'='*105}")
+        print(f" {exp_labels.get(exp_id, exp_id)}")
+        print(f"{'='*105}")
+        hdr = (f"{'N':>6} | {'|S|':>6} | {'gp_atoms':>10} | {'circ_nds':>10} | "
+               f"{'t_ground':>10} | {'t_compile':>11} | {'α(tc)':>7} | {'α(nds)':>7}")
+        print(hdr)
+        print('-' * 105)
+        for r in rows:
+            gpa = f"{int(r['gp_atoms']):>10}" if r.get('gp_atoms') and not math.isnan(r['gp_atoms']) else f"{'?':>10}"
+            nds = f"{int(r['circuit_nodes']):>10}" if r.get('circuit_nodes') and not math.isnan(r['circuit_nodes']) else f"{'?':>10}"
+            tg  = f"{r['t_ground']:>10.4f}"  if r.get('t_ground')  else f"{'?':>10}"
+            tc  = f"{r['t_compile']:>11.4f}" if r.get('t_compile') else f"{'?':>11}"
+            atc = f"{r['alpha_tc']:>7.2f}"   if r.get('alpha_tc')  else f"{'--':>7}"
+            and_ = f"{r['alpha_nds']:>7.2f}" if r.get('alpha_nds') else f"{'--':>7}"
+            print(f"{int(r['N']):>6} | {int(r['S']):>6} | {gpa} | {nds} | {tg} | {tc} | {atc} | {and_}")
 
-            # Si fue OOM/TIMEOUT, no intentar N mayores
-            if 'OOM' in str(metrics.get('status', '')) or 'TIMEOUT' in str(metrics.get('status', '')):
-                print(f"  [N>{N}] Saltando N restantes (limite alcanzado)")
-                for N_skip in N_values[N_values.index(N) + 1:]:
-                    results.append({'N': N_skip, 'status': 'SKIPPED'})
-                break
-            continue
+    # ── Verificación de predicciones teóricas ──────────────────────────────
+    print(f"\n{'='*70}")
+    print(" Verificación de predicciones teóricas")
+    print(f"{'='*70}")
 
-        # Tomar mediana de las repeticiones
-        median_idx = len(trial_metrics) // 2
-        sorted_by_total = sorted(trial_metrics, key=lambda m: m.get('t_total', float('inf')))
-        best = sorted_by_total[median_idx]
-        best['N'] = N
-        results.append(best)
+    exp_a = ok[ok['experiment'] == 'A']
+    if not exp_a.empty:
+        med_a = exp_a.groupby('N')[['gp_atoms', 'circuit_nodes', 't_compile']].median()
+        Ns = sorted(med_a.index)
 
-        t_c = best.get('t_compile', 0) or 0
-        t_g = best.get('t_ground', 0) or 0
-        t_t = best.get('t_total', 0) or 0
-        gpa = best.get('gp_atoms', '?')
-        nds = best.get('ddnnf_nodes', '?')
-        print(f"  [N={N:>4}] t_compile={t_c:.3f}s  t_ground={t_g:.3f}s  "
-              f"t_total={t_t:.3f}s  gp_atoms={gpa}  nodes={nds}")
+        # Prop 7.1: gp_atoms ~ O(N) → α_atoms ≈ 1.0
+        if len(Ns) >= 2:
+            N1, N2 = Ns[-2], Ns[-1]
+            a_atoms = _alpha(med_a.loc[N1, 'gp_atoms'], med_a.loc[N2, 'gp_atoms'], N1, N2)
+            verdict = "✓ CONFORME" if a_atoms and 0.8 <= a_atoms <= 1.3 else "⚠ REVISAR"
+            print(f"  Prop 7.1 (gp_atoms ~ O(N))     α={a_atoms:.2f if a_atoms else '?':>5}  esperado ≈ 1.0  {verdict}")
 
-    return results
+        # Sec 7.2: t_compile crece super-polinomialmente → α_tc creciente y >> 1
+        alphas_tc = []
+        for i in range(1, len(Ns)):
+            a = _alpha(med_a.loc[Ns[i-1], 't_compile'], med_a.loc[Ns[i], 't_compile'], Ns[i-1], Ns[i])
+            if a:
+                alphas_tc.append(a)
+        if alphas_tc:
+            max_alpha = max(alphas_tc)
+            is_growing = all(alphas_tc[i] >= alphas_tc[i-1] - 0.5 for i in range(1, len(alphas_tc)))
+            verdict = "✓ CONFORME" if max_alpha > 2.0 else "⚠ REVISAR"
+            trend   = "creciente" if is_growing else "no monótona"
+            print(f"  Sec 7.2 (t_compile super-polin.) α_max={max_alpha:.2f}  tendencia={trend}  {verdict}")
 
+    # Exp B: factorización debería reducir tiempo de compilación
+    b_mono = ok[ok['experiment'] == 'B_mono']
+    b_bi   = ok[ok['experiment'] == 'B_bi']
+    if not b_mono.empty and not b_bi.empty:
+        mono_med = b_mono.groupby('N')['t_compile'].median()
+        bi_med   = b_bi.groupby('N')['t_compile'].median()
+        print()
+        print("  Exp B — Speedup de factorización (mismo |S|):")
+        print(f"  {'N_bi':>5} | {'|S|':>6} | {'t_mono':>10} | {'t_bi':>10} | {'speedup':>9}")
+        print(f"  {'-'*50}")
+        for N_bi in sorted(bi_med.index):
+            N_mono = N_bi * N_bi
+            if N_mono in mono_med.index:
+                tc_m = mono_med[N_mono]
+                tc_b = bi_med[N_bi]
+                speedup = tc_m / tc_b if tc_b > 0 else float('inf')
+                verdict = "✓" if speedup > 1.0 else "✗"
+                print(f"  {N_bi:>5} | {N_mono:>6} | {tc_m:>10.4f} | {tc_b:>10.4f} | {speedup:>8.2f}x {verdict}")
+        print()
+        print("  Si speedup > 1 → la factorización reduce el treewidth efectivo (Sec 7.2)")
+        print("  Si speedup ≈ 1 → el treewidth no depende de la factorización en este dominio")
 
-# ---------------------------------------------------------------------------
-# Analisis de escalado
-# ---------------------------------------------------------------------------
-
-def compute_scaling_exponents(results):
-    """Computa exponentes de escalado (pendientes log-log) entre puntos consecutivos."""
-    valid = [r for r in results if r.get('status') == 'OK' and r.get('t_compile')]
-    for i in range(1, len(valid)):
-        N1, N2 = valid[i - 1]['N'], valid[i]['N']
-
-        for key in ('t_compile', 't_ground', 't_total', 'gp_atoms', 'ddnnf_nodes', 'ddnnf_edges'):
-            v1 = valid[i - 1].get(key)
-            v2 = valid[i].get(key)
-            if v1 and v2 and v1 > 0 and v2 > 0 and N1 != N2:
-                alpha = math.log(v2 / v1) / math.log(N2 / N1)
-                valid[i][f'alpha_{key}'] = alpha
-
-
-# ---------------------------------------------------------------------------
-# Salida formateada
-# ---------------------------------------------------------------------------
-
-def print_results_table(results, title):
-    """Tabla ASCII formateada."""
-    print(f"\n{'=' * 100}")
-    print(f" {title}")
-    print(f"{'=' * 100}")
-
-    header = (f"{'N':>5} | {'|S|':>6} | {'gp_atoms':>10} | {'ddnnf_nds':>10} | "
-              f"{'ddnnf_edg':>10} | {'t_ground':>10} | {'t_compile':>11} | "
-              f"{'t_total':>10} | {'alpha':>6}")
-    print(header)
-    print("-" * 100)
-
-    for r in results:
-        N = r.get('N', '?')
-        status = r.get('status', 'FAILED')
-
-        if status != 'OK':
-            print(f"{N:>5} | {'':>6} | {'':>10} | {'':>10} | "
-                  f"{'':>10} | {'':>10} | {'':>11} | "
-                  f"{'':>10} | {status}")
-            continue
-
-        S = N  # Single factor: |S| = N
-        gpa = r.get('gp_atoms', '-')
-        nds = r.get('ddnnf_nodes', '-')
-        edg = r.get('ddnnf_edges', '-')
-        tg = r.get('t_ground', 0)
-        tc = r.get('t_compile', 0)
-        tt = r.get('t_total', 0)
-        alpha = r.get('alpha_t_compile')
-
-        gpa_s = f"{gpa:>10}" if isinstance(gpa, int) else f"{'?':>10}"
-        nds_s = f"{nds:>10}" if isinstance(nds, int) else f"{'?':>10}"
-        edg_s = f"{edg:>10}" if isinstance(edg, int) else f"{'?':>10}"
-        tg_s = f"{tg:>10.4f}" if tg else f"{'?':>10}"
-        tc_s = f"{tc:>11.4f}" if tc else f"{'?':>11}"
-        tt_s = f"{tt:>10.4f}" if tt else f"{'?':>10}"
-        al_s = f"{alpha:>6.2f}" if alpha else f"{'--':>6}"
-
-        print(f"{N:>5} | {S:>6} | {gpa_s} | {nds_s} | "
-              f"{edg_s} | {tg_s} | {tc_s} | "
-              f"{tt_s} | {al_s}")
-
-
-def print_comparison_table(mono_results, bi_results):
-    """Tabla de comparacion mono-factor vs bi-factor."""
-    print(f"\n{'=' * 90}")
-    print(" Experimento B: Comparacion Mono-Factor vs Bi-Factor")
-    print(f"{'=' * 90}")
-
-    header = (f"{'Config':>12} | {'|S|':>6} | {'gp_atoms':>10} | {'ddnnf_nds':>10} | "
-              f"{'t_compile':>11} | {'t_total':>10} | {'speedup':>8}")
-    print(header)
-    print("-" * 90)
-
-    # Emparejar por |S| aproximado
-    mono_by_n = {r['N']: r for r in mono_results if r.get('status') == 'OK'}
-    bi_by_n = {r['N']: r for r in bi_results if r.get('status') == 'OK'}
-
-    pairs = []
-    for N_bi, r_bi in sorted(bi_by_n.items()):
-        S_bi = N_bi * N_bi  # 2 factores de base N -> |S| = N^2
-        # Buscar mono con N_mono = N_bi^2 o cercano
-        N_mono = N_bi * N_bi
-        if N_mono in mono_by_n:
-            pairs.append((N_mono, mono_by_n[N_mono], N_bi, r_bi))
-
-    for N_mono, r_mono, N_bi, r_bi in pairs:
-        S = N_mono  # = N_bi^2
-
-        # Mono
-        tc_m = r_mono.get('t_compile', 0) or 0
-        tt_m = r_mono.get('t_total', 0) or 0
-        gpa_m = r_mono.get('gp_atoms', '?')
-        nds_m = r_mono.get('ddnnf_nodes', '?')
-
-        print(f"{'Mono-' + str(N_mono):>12} | {S:>6} | {gpa_m:>10} | {nds_m:>10} | "
-              f"{tc_m:>11.4f} | {tt_m:>10.4f} | {'1.0x':>8}")
-
-        # Bi
-        tc_b = r_bi.get('t_compile', 0) or 0
-        tt_b = r_bi.get('t_total', 0) or 0
-        gpa_b = r_bi.get('gp_atoms', '?')
-        nds_b = r_bi.get('ddnnf_nodes', '?')
-        speedup = f"{tc_m / tc_b:.1f}x" if tc_b > 0 else "?"
-
-        print(f"{'Bi-' + str(N_bi):>12} | {S:>6} | {gpa_b:>10} | {nds_b:>10} | "
-              f"{tc_b:>11.4f} | {tt_b:>10.4f} | {speedup:>8}")
-        print("-" * 90)
-
-
-def export_csv(results, filename):
-    """Exporta resultados a CSV con flush incremental."""
-    keys = ['N', 'status', 'gp_atoms', 'ddnnf_nodes', 'ddnnf_edges',
-            'ddnnf_atom_count', 't_ground', 't_compile', 't_total',
-            'alpha_t_compile', 'alpha_gp_atoms', 'alpha_ddnnf_nodes']
-
-    with open(filename, 'w', newline='') as f:
-        writer = csv.DictWriter(f, fieldnames=keys, extrasaction='ignore')
-        writer.writeheader()
-        for r in results:
-            writer.writerow(r)
-            f.flush()
-
-    print(f"  CSV exportado: {filename}")
+    print(f"{'='*70}\n")
 
 
 # ---------------------------------------------------------------------------
-# Main
+# Orquestador principal
 # ---------------------------------------------------------------------------
 
 def main():
-    print("=" * 80)
-    print(" Fase 3: Analisis de Explosion de Treewidth (Proposicion 7.1)")
-    print("=" * 80)
-
-    timeout = 120
-    reps = 3
-
-    # === Experimento A: Barrido de cardinalidad (1 factor) ===
-    N_values_A = [2, 3, 5, 8, 10, 15, 20, 30, 40, 50, 75, 100, 125]
-
-    results_A = run_sweep(
-        N_values_A, generate_roulette,
-        "Experimento A: Barrido de Cardinalidad (1 Factor Multivaluado)",
-        repetitions=reps, timeout=timeout
+    parser = argparse.ArgumentParser(
+        description='Experimento Fase 3: Análisis de Explosión de Treewidth'
     )
-    compute_scaling_exponents(results_A)
-    print_results_table(results_A, "Resultados Experimento A: Ruleta de N Caras")
-    export_csv(results_A, "fase3_experimento_A.csv")
+    parser.add_argument('--exp', nargs='+', default=['A'],
+                        choices=['A', 'B'],
+                        help='Experimentos a ejecutar (B incluye B_mono y B_bi)')
+    parser.add_argument('--compilers', nargs='+', default=['ddnnf'],
+                        choices=['ddnnf', 'sdd'],
+                        help='Backends de compilación')
+    parser.add_argument('--runs', type=int, default=3,
+                        help='Número de repeticiones por tarea')
+    parser.add_argument('--timeout', type=int, default=120,
+                        help='Timeout por tarea en segundos')
+    parser.add_argument('--N_values', nargs='+', type=int, default=None,
+                        help='Override de valores N para Exp A')
+    parser.add_argument('--N_bi', nargs='+', type=int, default=None,
+                        help='Valores N (bi-factor) para Exp B; N_mono se calcula como N²')
+    args = parser.parse_args()
 
-    # Resumen de hallazgos Exp A
-    valid_A = [r for r in results_A if r.get('status') == 'OK']
-    if len(valid_A) >= 2:
-        last = valid_A[-1]
-        print(f"\n  Hallazgos clave:")
-        tg = last.get('t_ground', 0) or 0.001
-        tc = last.get('t_compile', 0) or 0.001
-        print(f"    N_max alcanzado: {last['N']}")
-        print(f"    Ratio t_compile/t_ground en N={last['N']}: {tc/tg:.1f}x")
-        if last.get('alpha_t_compile'):
-            print(f"    Exponente de escalado (t_compile): {last['alpha_t_compile']:.2f}")
+    # Expandir 'B' → 'B_mono' + 'B_bi'
+    exp_ids = []
+    for e in args.exp:
+        if e == 'B':
+            exp_ids += ['B_mono', 'B_bi']
+        else:
+            exp_ids.append(e)
 
-    # === Experimento B: Multi-factor vs Mono-factor ===
-    # Bi-factor con N in {3,4,5,10} -> |S| = {9,16,25,100}
-    # Necesitamos mono-factor con N in {9,16,25,100} para comparar
-    N_values_mono_B = [9, 16, 25, 100]
-    N_values_bi_B = [3, 4, 5, 10]
-
-    results_mono_B = run_sweep(
-        N_values_mono_B, generate_roulette,
-        "Experimento B-Mono: Mono-Factor (referencia)",
-        repetitions=reps, timeout=timeout
+    tasks = generate_tasks(
+        exp_ids,
+        compilers=args.compilers,
+        run_ids=list(range(1, args.runs + 1)),
+        N_values_A=args.N_values,
+        N_bi=args.N_bi,
     )
 
-    results_bi_B = run_sweep(
-        N_values_bi_B, generate_two_roulettes,
-        "Experimento B-Bi: Bi-Factor (2 factores independientes)",
-        repetitions=reps, timeout=timeout
-    )
+    os.makedirs('resultados', exist_ok=True)
+    completed = load_completed(CSV_PATH)
 
-    print_comparison_table(results_mono_B, results_bi_B)
-    export_csv(results_mono_B, "fase3_experimento_B_mono.csv")
-    export_csv(results_bi_B, "fase3_experimento_B_bi.csv")
+    total   = len(tasks)
+    skipped = done = errors = 0
 
-    # === Resumen Final ===
-    print(f"\n{'=' * 80}")
-    print(" RESUMEN FASE 3")
-    print(f"{'=' * 80}")
+    # Rastrear el último N que falló por (exp_id, generator, compiler)
+    # para aplicar early-stop dentro de cada configuración.
+    oom_ceiling = {}  # (exp_id, generator, compiler) → N_max_failed
 
-    max_ok_A = max((r['N'] for r in results_A if r.get('status') == 'OK'), default=0)
-    print(f"  Exp A: Cardinalidad maxima alcanzada (< {timeout}s): N = {max_ok_A}")
+    print(f"[Fase3] Experimentos={args.exp}  Tareas={total}  Timeout={args.timeout}s")
+    print(f"[Fase3] CSV={CSV_PATH}")
+    print()
 
-    failed_A = [r for r in results_A if r.get('status') != 'OK']
-    if failed_A:
-        print(f"  Exp A: Primer fallo en N = {failed_A[0]['N']} ({failed_A[0].get('status')})")
+    for task in tasks:
+        key = task_key(task)
 
-    # Verificar dominancia de compilacion
-    for r in valid_A:
-        tg = r.get('t_ground', 0) or 0.001
-        tc = r.get('t_compile', 0) or 0.001
-        if r['N'] >= 30 and tc / tg < 2.0:
-            print(f"  [NOTA] N={r['N']}: t_compile/t_ground = {tc/tg:.1f}x "
-                  f"(compilacion NO domina como esperado)")
+        if key in completed:
+            skipped += 1
+            continue
 
-    print(f"{'=' * 80}")
+        # Early-stop: si ya hubo OOM/timeout para N' < N en esta configuración,
+        # registrar como skipped sin intentar.
+        cfg_key = (task['experiment'], task['generator'], task['compiler'])
+        if cfg_key in oom_ceiling and task['N'] > oom_ceiling[cfg_key]:
+            result = {'status': 'skipped', 'error_msg': f"N>{oom_ceiling[cfg_key]} omitido tras OOM/timeout"}
+            append_result(CSV_PATH, task, result)
+            skipped += 1
+            print(f"[SKIP] {key}  → skipped (N>{oom_ceiling[cfg_key]})")
+            continue
+
+        label = (task['experiment'], task['N'], task['generator'],
+                 task['compiler'], task['run_id'])
+        print(f"[RUN]  {label}", end='', flush=True)
+
+        result = run_task_safe(task, timeout_seconds=args.timeout)
+        append_result(CSV_PATH, task, result)
+
+        status = result.get('status', '?')
+        if status == 'success':
+            done += 1
+            tc  = result.get('t_compile', 0) or 0
+            nds = result.get('circuit_nodes', '?')
+            print(f"  → OK  t_compile={tc:.3f}s  nodes={nds}")
+        else:
+            errors += 1
+            msg = result.get('error_msg', '')
+            print(f"  → {status}  {msg}")
+            # Activar early-stop para N mayores en esta configuración
+            if status in ('oom_killed', 'timeout'):
+                if cfg_key not in oom_ceiling or task['N'] < oom_ceiling[cfg_key]:
+                    oom_ceiling[cfg_key] = task['N']
+
+    print()
+    print(f"[Fase3] Completado: {done} OK  |  {skipped} skip  |  {errors} error/timeout")
+    print(f"[Fase3] Resultados en: {CSV_PATH}")
+
+    print_summary(CSV_PATH)
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()

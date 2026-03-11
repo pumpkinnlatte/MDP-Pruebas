@@ -46,7 +46,8 @@ if __name__ == "__main__":
     #prog_dir = "tests/semaforo.pl"
     #prog_dir = "tests/model_tests/rn_gridworld/rn_gridworld01.pl"
     #prog_dir = "tests/model_tests/mitchell_grid/boolean/boolean_grid02.pl"
-    prog_dir = "tests/model_tests/mitchell_grid/multi-factor/multi_factor_grid06.pl"
+    #prog_dir = "tests/model_tests/mitchell_grid/multi-factor/multi_factor_grid03.pl"
+    prog_dir = "tests/model_tests/mitchell_grid/multivalued/multivalued_grid07.pl"
 
     # Cargar modelo
     model_str = load_model(prog_dir)
@@ -55,8 +56,8 @@ if __name__ == "__main__":
     mdp = MDP(model_str)
 
     #DEBUG
-    MDPDebugger.export_transition_model(mdp)
-    MDPDebugger.export_reward_model(mdp)
+    #MDPDebugger.export_transition_model(mdp)
+    #MDPDebugger.export_reward_model(mdp)
 
     show_state_space(mdp.state_schema)
 
@@ -68,6 +69,6 @@ if __name__ == "__main__":
 
     print_solution(V, policy, iterations, uptime)
 
-    MDPDebugger.export_q_table(mdp, Q_table)
-    MDPDebugger.export_value_history(mdp, V_history)
+    #MDPDebugger.export_q_table(mdp, Q_table)
+    #MDPDebugger.export_value_history(mdp, V_history)
 

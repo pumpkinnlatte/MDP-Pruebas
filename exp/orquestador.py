@@ -20,6 +20,7 @@ Uso:
   python exp/orquestador.py --phase B --winner multi_factor --compilers ddnnf
 """
 
+
 import os
 import sys
 import io
@@ -28,6 +29,12 @@ import argparse
 import multiprocessing
 
 import pandas as pd
+
+project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, project_root)
+
+from src.mdp import MDP
+from src.value_iteration import ValueIteration
 
 
 # ---------------------------------------------------------------------------
@@ -59,7 +66,12 @@ COLS_FASE_A = [
     'status', 'error_msg',
 ]
 
-COLS_FASE_B = COLS_FASE_A + ['gamma', 'epsilon', 't_vi', 'n_iterations', 't_per_iter']
+COLS_FASE_B = COLS_FASE_A + [
+    'gamma', 'epsilon', 't_vi', 'n_iterations', 't_per_iter',
+    'n_wmc_transition', 't_wmc_transition', 't_per_transition',
+    'n_wmc_reward',     't_wmc_reward',     't_per_reward',
+    't_bellman_total',
+]
 
 
 # ---------------------------------------------------------------------------
@@ -234,9 +246,7 @@ def _worker(task, queue):
     sys.stderr = io.StringIO()
 
     try:
-        from src.mdp import MDP
-        from src.value_iteration import ValueIteration
-
+       
         backend = None if task['compiler'] == 'ddnnf' else task['compiler']
         model_str = open(task['model_path']).read()
 
@@ -260,13 +270,22 @@ def _worker(task, queue):
         # Fase B: ejecutar Value Iteration
         if task['phase'] == 'B':
             vi = ValueIteration(mdp)
+            mdp.reset_wmc_stats()   # aislar WMC de la fase de preparación
             t0 = time.perf_counter()
             V, policy, Q, V_hist, iters = vi.run(task['gamma'], task['epsilon'])
             t_vi = time.perf_counter() - t0
+            wmc = mdp.get_wmc_stats()
             result.update({
-                't_vi':        t_vi,
-                'n_iterations': iters,
-                't_per_iter':  t_vi / iters if iters else None,
+                't_vi':              t_vi,
+                'n_iterations':      iters,
+                't_per_iter':        t_vi / iters if iters else None,
+                'n_wmc_transition':  wmc['n_wmc_transition'],
+                't_wmc_transition':  wmc['t_wmc_transition'],
+                't_per_transition':  wmc['t_per_transition'],
+                'n_wmc_reward':      wmc['n_wmc_reward'],
+                't_wmc_reward':      wmc['t_wmc_reward'],
+                't_per_reward':      wmc['t_per_reward'],
+                't_bellman_total':   t_vi - wmc['t_wmc_transition'] - wmc['t_wmc_reward'],
             })
 
         queue.put(result)
