@@ -1,102 +1,81 @@
 === MDP-ProbLog Instructions Table ===
-Timestamp: 2026-03-08 20:32:52
-Total Nodes: 433
+Timestamp: 2026-03-11 21:05:16
+Total Nodes: 233
 ============================================================
 
 ID     | Instruction / Content
 ------------------------------------------------------------
 0      | _builtin_forall(V_0,V_1) :- \+(call(V_0), \+call(V_1))
-1      | state_fluent(x(V_0),multivalued) :- row(V_0)
-2      | state_fluent(y(V_0),multivalued) :- col(V_0)
-3      | action(left)
-4      | action(right)
-5      | action(up)
-6      | action(down)
-7      | action(stay)
-8      | utility(goal,100)
-9      | goal :- x(1,1), y(8,1), \+terminal
-10     | terminal :- x(1,0), y(8,0)
-11     | body_51(38,x(V_0,1),V_0,V_1,V_2) :- x(V_0,0), y(V_1,0), right, V_2 is V_1+1, col(V_2), \+terminal
-12     | 1.0::choice(38,0,x(A1,1),A1,A2,A3)
-13     | x(V_0,1) :- body_51(38,x(V_0,1),V_0,V_1,V_2), choice(38,0,x(V_0,1),V_0,V_1,V_2)
-14     | body_70(58,y(V_0,1),V_0,V_1,V_2) :- x(V_1,0), y(V_2,0), right, V_0 is V_2+1, col(V_0), \+terminal
-15     | 1.0::choice(58,0,y(A1,1),A1,A2,A3)
-16     | y(V_0,1) :- body_70(58,y(V_0,1),V_0,V_1,V_2), choice(58,0,y(V_0,1),V_0,V_1,V_2)
-17     | body_90(77,x(V_0,1),V_0,V_1,V_2) :- x(V_0,0), y(V_1,0), left, V_2 is V_1-1, col(V_2), \+terminal
-18     | 1.0::choice(77,0,x(A1,1),A1,A2,A3)
-19     | x(V_0,1) :- body_90(77,x(V_0,1),V_0,V_1,V_2), choice(77,0,x(V_0,1),V_0,V_1,V_2)
-20     | body_109(97,y(V_0,1),V_0,V_1,V_2) :- x(V_1,0), y(V_2,0), left, V_0 is V_2-1, col(V_0), \+terminal
-21     | 1.0::choice(97,0,y(A1,1),A1,A2,A3)
-22     | y(V_0,1) :- body_109(97,y(V_0,1),V_0,V_1,V_2), choice(97,0,y(V_0,1),V_0,V_1,V_2)
-23     | body_129(116,x(V_0,1),V_0,V_1,V_2) :- x(V_1,0), y(V_2,0), down, V_0 is V_1+1, row(V_0), \+terminal
-24     | 1.0::choice(116,0,x(A1,1),A1,A2,A3)
-25     | x(V_0,1) :- body_129(116,x(V_0,1),V_0,V_1,V_2), choice(116,0,x(V_0,1),V_0,V_1,V_2)
-26     | body_148(136,y(V_0,1),V_0,V_1,V_2) :- x(V_1,0), y(V_0,0), down, V_2 is V_1+1, row(V_2), \+terminal
-27     | 1.0::choice(136,0,y(A1,1),A1,A2,A3)
-28     | y(V_0,1) :- body_148(136,y(V_0,1),V_0,V_1,V_2), choice(136,0,y(V_0,1),V_0,V_1,V_2)
-29     | body_168(155,x(V_0,1),V_0,V_1,V_2) :- x(V_1,0), y(V_2,0), up, V_0 is V_1-1, row(V_0), \+terminal
-30     | 1.0::choice(155,0,x(A1,1),A1,A2,A3)
-31     | x(V_0,1) :- body_168(155,x(V_0,1),V_0,V_1,V_2), choice(155,0,x(V_0,1),V_0,V_1,V_2)
-32     | body_187(175,y(V_0,1),V_0,V_1,V_2) :- x(V_1,0), y(V_0,0), up, V_2 is V_1-1, row(V_2), \+terminal
-33     | 1.0::choice(175,0,y(A1,1),A1,A2,A3)
-34     | y(V_0,1) :- body_187(175,y(V_0,1),V_0,V_1,V_2), choice(175,0,y(V_0,1),V_0,V_1,V_2)
-35     | body_203(194,x(V_0,1),V_0,V_1) :- x(V_0,0), y(V_1,0), stay, \+terminal
-36     | 1.0::choice(194,0,x(A1,1),A1,A2)
-37     | x(V_0,1) :- body_203(194,x(V_0,1),V_0,V_1), choice(194,0,x(V_0,1),V_0,V_1)
-38     | body_218(210,y(V_0,1),V_0,V_1) :- x(V_1,0), y(V_0,0), stay, \+terminal
-39     | 1.0::choice(210,0,y(A1,1),A1,A2)
-40     | y(V_0,1) :- body_218(210,y(V_0,1),V_0,V_1), choice(210,0,y(V_0,1),V_0,V_1)
-41     | body_238(225,x(V_0,1),V_0,V_1,V_2) :- x(V_0,0), y(V_1,0), right, V_2 is V_1+1, \+col(V_2), \+terminal
-42     | 1.0::choice(225,0,x(A1,1),A1,A2,A3)
-43     | x(V_0,1) :- body_238(225,x(V_0,1),V_0,V_1,V_2), choice(225,0,x(V_0,1),V_0,V_1,V_2)
-44     | body_258(245,y(V_0,1),V_0,V_1,V_2) :- x(V_1,0), y(V_0,0), right, V_2 is V_0+1, \+col(V_2), \+terminal
-45     | 1.0::choice(245,0,y(A1,1),A1,A2,A3)
-46     | y(V_0,1) :- body_258(245,y(V_0,1),V_0,V_1,V_2), choice(245,0,y(V_0,1),V_0,V_1,V_2)
-47     | body_278(265,x(V_0,1),V_0,V_1,V_2) :- x(V_0,0), y(V_1,0), left, V_2 is V_1-1, \+col(V_2), \+terminal
-48     | 1.0::choice(265,0,x(A1,1),A1,A2,A3)
-49     | x(V_0,1) :- body_278(265,x(V_0,1),V_0,V_1,V_2), choice(265,0,x(V_0,1),V_0,V_1,V_2)
-50     | body_298(285,y(V_0,1),V_0,V_1,V_2) :- x(V_1,0), y(V_0,0), left, V_2 is V_0-1, \+col(V_2), \+terminal
-51     | 1.0::choice(285,0,y(A1,1),A1,A2,A3)
-52     | y(V_0,1) :- body_298(285,y(V_0,1),V_0,V_1,V_2), choice(285,0,y(V_0,1),V_0,V_1,V_2)
-53     | body_318(305,x(V_0,1),V_0,V_1,V_2) :- x(V_0,0), y(V_1,0), down, V_2 is V_0+1, \+row(V_2), \+terminal
-54     | 1.0::choice(305,0,x(A1,1),A1,A2,A3)
-55     | x(V_0,1) :- body_318(305,x(V_0,1),V_0,V_1,V_2), choice(305,0,x(V_0,1),V_0,V_1,V_2)
-56     | body_338(325,y(V_0,1),V_0,V_1,V_2) :- x(V_1,0), y(V_0,0), down, V_2 is V_1+1, \+row(V_2), \+terminal
-57     | 1.0::choice(325,0,y(A1,1),A1,A2,A3)
-58     | y(V_0,1) :- body_338(325,y(V_0,1),V_0,V_1,V_2), choice(325,0,y(V_0,1),V_0,V_1,V_2)
-59     | body_358(345,x(V_0,1),V_0,V_1,V_2) :- x(V_0,0), y(V_1,0), up, V_2 is V_0-1, \+row(V_2), \+terminal
-60     | 1.0::choice(345,0,x(A1,1),A1,A2,A3)
-61     | x(V_0,1) :- body_358(345,x(V_0,1),V_0,V_1,V_2), choice(345,0,x(V_0,1),V_0,V_1,V_2)
-62     | body_378(365,y(V_0,1),V_0,V_1,V_2) :- x(V_1,0), y(V_0,0), up, V_2 is V_1-1, \+row(V_2), \+terminal
-63     | 1.0::choice(365,0,y(A1,1),A1,A2,A3)
-64     | y(V_0,1) :- body_378(365,y(V_0,1),V_0,V_1,V_2), choice(365,0,y(V_0,1),V_0,V_1,V_2)
-65     | body_390(385,x(V_0,1),V_0,V_1) :- x(V_0,0), y(V_1,0), terminal
-66     | 1.0::choice(385,0,x(A1,1),A1,A2)
-67     | x(V_0,1) :- body_390(385,x(V_0,1),V_0,V_1), choice(385,0,x(V_0,1),V_0,V_1)
-68     | body_402(397,y(V_0,1),V_0,V_1) :- x(V_1,0), y(V_0,0), terminal
-69     | 1.0::choice(397,0,y(A1,1),A1,A2)
-70     | y(V_0,1) :- body_402(397,y(V_0,1),V_0,V_1), choice(397,0,y(V_0,1),V_0,V_1)
-71     | row(1)
-72     | row(2)
-73     | row(3)
-74     | row(4)
-75     | row(5)
-76     | row(6)
-77     | row(7)
-78     | row(8)
-79     | col(1)
-80     | col(2)
-81     | col(3)
-82     | col(4)
-83     | col(5)
-84     | col(6)
-85     | col(7)
-86     | col(8)
-87     | col(9)
-88     | col(10)
-89     | col(11)
-90     | col(12)
-91     | col(13)
-92     | col(14)
-93     | col(15)
-94     | col(16)
+1      | state_fluent(s(V_0),multivalued) :- states(V_0)
+2      | action(study)
+3      | action(sleep)
+4      | action(relax)
+5      | action(quit)
+6      | action(pub)
+7      | utility(study_class1,-2)
+8      | utility(study_class2,-2)
+9      | utility(study_class3,10)
+10     | utility(class3_pub,1)
+11     | utility(class1_relax,-1)
+12     | utility(tv_relax,-1)
+13     | utility(class2_sleep,0)
+14     | utility(premio_doble,10)
+15     | premio_doble :- s(class1,1), s(class2,1)
+16     | study_class1 :- s(class1,0), study
+17     | study_class2 :- s(class2,0), study
+18     | study_class3 :- s(class3,0), study
+19     | class1_relax :- s(class1,0), relax
+20     | class2_sleep :- s(class2,0), sleep
+21     | class3_pub :- s(class3,0), pub
+22     | tv_relax :- s(tv,0), relax
+23     | tv_quit :- s(tv,0), quit
+24     | body_81(78,s(class2,1)) :- s(class1,0), study
+25     | 1.0::choice(78,0,s(class2,1))
+26     | s(class2,1) :- body_81(78,s(class2,1)), choice(78,0,s(class2,1))
+27     | body_91(88,s(tv,1)) :- s(class1,0), relax
+28     | 1.0::choice(88,0,s(tv,1))
+29     | s(tv,1) :- body_91(88,s(tv,1)), choice(88,0,s(tv,1))
+30     | body_101(98,s(class3,1)) :- s(class2,0), study
+31     | 1.0::choice(98,0,s(class3,1))
+32     | s(class3,1) :- body_101(98,s(class3,1)), choice(98,0,s(class3,1))
+33     | body_111(108,s(sleep,1)) :- s(class2,0), sleep
+34     | 1.0::choice(108,0,s(sleep,1))
+35     | s(sleep,1) :- body_111(108,s(sleep,1)), choice(108,0,s(sleep,1))
+36     | body_121(118,s(sleep,1)) :- s(class3,0), study
+37     | 1.0::choice(118,0,s(sleep,1))
+38     | s(sleep,1) :- body_121(118,s(sleep,1)), choice(118,0,s(sleep,1))
+39     | body_131(128,s(class1,1)) :- s(class3,0), pub
+40     | 0.2::choice(128,0,s(class1,1))
+41     | s(class1,1) :- body_131(128,s(class1,1)), choice(128,0,s(class1,1))
+42     | body_141(138,s(class2,1)) :- s(class3,0), pub
+43     | 0.4::choice(138,0,s(class2,1))
+44     | s(class2,1) :- body_141(138,s(class2,1)), choice(138,0,s(class2,1))
+45     | body_151(148,s(class3,1)) :- s(class3,0), pub
+46     | 0.4::choice(148,0,s(class3,1))
+47     | s(class3,1) :- body_151(148,s(class3,1)), choice(148,0,s(class3,1))
+48     | body_161(158,s(tv,1)) :- s(tv,0), relax
+49     | 1.0::choice(158,0,s(tv,1))
+50     | s(tv,1) :- body_161(158,s(tv,1)), choice(158,0,s(tv,1))
+51     | body_171(168,s(class1,1)) :- s(tv,0), quit
+52     | 1.0::choice(168,0,s(class1,1))
+53     | s(class1,1) :- body_171(168,s(class1,1)), choice(168,0,s(class1,1))
+54     | body_181(178,s(sleep,1)) :- s(sleep,0), study
+55     | 1.0::choice(178,0,s(sleep,1))
+56     | s(sleep,1) :- body_181(178,s(sleep,1)), choice(178,0,s(sleep,1))
+57     | body_191(188,s(sleep,1)) :- s(sleep,0), quit
+58     | 1.0::choice(188,0,s(sleep,1))
+59     | s(sleep,1) :- body_191(188,s(sleep,1)), choice(188,0,s(sleep,1))
+60     | body_201(198,s(sleep,1)) :- s(sleep,0), relax
+61     | 1.0::choice(198,0,s(sleep,1))
+62     | s(sleep,1) :- body_201(198,s(sleep,1)), choice(198,0,s(sleep,1))
+63     | body_211(208,s(sleep,1)) :- s(sleep,0), sleep
+64     | 1.0::choice(208,0,s(sleep,1))
+65     | s(sleep,1) :- body_211(208,s(sleep,1)), choice(208,0,s(sleep,1))
+66     | body_221(218,s(sleep,1)) :- s(sleep,0), pub
+67     | 1.0::choice(218,0,s(sleep,1))
+68     | s(sleep,1) :- body_221(218,s(sleep,1)), choice(218,0,s(sleep,1))
+69     | states(class1)
+70     | states(class2)
+71     | states(class3)
+72     | states(tv)
+73     | states(sleep)

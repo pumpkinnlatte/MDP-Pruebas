@@ -62,7 +62,7 @@ class MDP(object):
                     t0_fluents.append(current_term) 
                     t1_fluents.append(next_term) 
                 self._engine.add_annotated_disjunction(t0_fluents, [1.0 / len(t0_fluents)] * len(t0_fluents))
-                self._engine.add_annotated_disjunction(t1_fluents, [1.0 / len(t1_fluents)] * len(t1_fluents))
+                self._engine.add_annotated_disjunction(t1_fluents,[1.0 / len(t0_fluents)] * len(t1_fluents))
 
         
         actions = self.actions()
