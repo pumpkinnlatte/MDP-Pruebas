@@ -7,5 +7,7 @@ src/debug/
 .vscode/
 CLAUDE.md
 .claude/
-
+exp/
+resultados/
+docs/
 
