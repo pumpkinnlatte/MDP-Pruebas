@@ -1,13 +1,9 @@
 
+import time
+
 from src.engine import Engine as eng
 from src.fluent import Fluent, FluentSchema, StateSpace, ActionSpace
-from collections import defaultdict #
-
-from problog.logic import Term
-
-from problog.program import PrologString
-from problog.formula import LogicFormula
-
+from src.fluent import FluentClassifier
 from src.debugger import MDPDebugger
 
 class MDP(object):
@@ -20,11 +16,19 @@ class MDP(object):
     """
 
     #01. Inicialización.
-    def __init__(self, model):
+    def __init__(self, model, epsilon_thr=1e-6, backend=None):
         self._model = model
+        self.epsilon_thr = epsilon_thr
+        self.backend = backend
+        self.timings = {}
         self._engine = eng(model)  #Se envía el modelo en str al engine
         self.__transition_cache = {}
         self.__reward_cache = {}
+        # Contadores WMC (solo llamadas reales al circuito, excluye cache hits)
+        self._wmc_n_transition = 0
+        self._wmc_t_transition = 0.0
+        self._wmc_n_reward     = 0
+        self._wmc_t_reward     = 0.0
         self.__prepare()
 
     def __prepare(self):
@@ -37,10 +41,13 @@ class MDP(object):
         # DEBUG: Tabla post-inyección 
         MDPDebugger.save_instructions_table(self._engine._db, filename="initial_instructions.txt")
     
-        # obtain the state fluent schema 
-        self.state_schema = self.__build_state_schema()
+        classifier = FluentClassifier(self._engine)
+
+        # obtain valid state fluent schema
+        self.state_schema = classifier.classify()
         print(self.state_schema)
 
+        self._next_state_factors = self.state_schema.get_factors_at(1)
         self._next_state_factors = self.state_schema.get_factors_at(1)
 
         # add dummy current state fluents
@@ -68,94 +75,19 @@ class MDP(object):
 
         queries = list(set(self.__utilities) | set(next_state_fluents) | set(actions) | set(current_state_fluents))
 
+        t0 = time.perf_counter()
         self._engine.relevant_ground(queries)
+        self.timings['t_ground'] = time.perf_counter() - t0
 
-        self.__next_state_queries = self._engine.compile(next_state_fluents)
-        self.__reward_queries = self._engine.compile(self.__utilities)
+        t0 = time.perf_counter()
+        self.__next_state_queries = self._engine.compile(next_state_fluents, backend=self.backend)
+        self.__reward_queries     = self._engine.compile(self.__utilities,    backend=self.backend)
+        self.timings['t_compile'] = time.perf_counter() - t0
 
         # DEBUG: Tabla post-inyección 
         MDPDebugger.save_instructions_table(self._engine._db, filename="post_injection_instructions.txt")
 
-   
-    def __build_state_schema(self):
-        schema = FluentSchema()
-        
-        explicit_fluents = self._engine.assignments('state_fluent')
-        implicit_fluents = self._engine.declarations('state_fluent')
-        
-        # 1. Obtenemos el vocabulario estocástico del motor
-        ads_vocabulary = self._engine.get_ads_vocabulary()
-
-        print("ADS Vocabulary:", ads_vocabulary)
-
-        all_terms = {} 
-        
-        # 2. Procesamiento de fluentes explícitos
-        for term, value in explicit_fluents.items():
-            tag = str(value)
-            if tag in ('bsf', 'ads'):
-                all_terms[str(term)] = (term, tag)
-            else:
-                raise ValueError(f"Unknown tag '{tag}'")
-
-        # 3. Procesamiento de fluentes implícitos (La nueva inferencia O(1))
-        for term in implicit_fluents:
-            term_str = str(term)
-            if term_str not in all_terms:
-                if len(term.args) > 0:
-                    # Extraemos el último argumento (ej. el objeto 't' o 'rojo')
-                    last_arg = term.args[-1]
-                    
-                    # Comparamos su texto contra el vocabulario ADS
-                    if str(last_arg) in ads_vocabulary:
-                        fluent_type = 'ads'
-                    else:
-                        fluent_type = 'bsf'
-                else:
-                    fluent_type = 'bsf'
-                    
-                all_terms[term_str] = (term, fluent_type)
-
-        # 4. Agrupamiento y validación (se mantiene idéntico a su código original)
-        ads_accumulator = {}
-        for term_str in sorted(all_terms.keys()):
-            term, fluent_type = all_terms[term_str]
-            if fluent_type == 'ads':
-                group_key = self.__get_group_key(term)
-                if group_key not in ads_accumulator:
-                    ads_accumulator[group_key] = []
-                ads_accumulator[group_key].append(term)
-            elif fluent_type == 'bsf':
-                schema.add_bsf(term)
-
-        for key in sorted(ads_accumulator.keys()):
-            terms_group = sorted(ads_accumulator[key], key=str)
-            if len(terms_group) < 2:
-                raise ValueError(
-                    f"ADS group '{key}' has only {len(terms_group)} option. "
-                    "A mutually exclusive group requires at least 2 options."
-                )
-            schema.add_group(terms_group)
-
-        return schema
-
-    def __get_group_key(self, term):
-        """
-        Generate the grouping key for an annotated disjunction term.
-        Strategy: functor plus all arguments except the last one.
-
-        :param term: state fluent term
-        :type term: problog.logic.Term
-        :rtype: str
-        """
-        if len(term.args) == 0:
-            return term.functor
-
-        if len(term.args) == 1:
-            return term.functor
-
-        variable_args = term.args[:-1]
-        return "{}({})".format(term.functor, ','.join(map(str, variable_args)))
+    # MDP ELEMENTS    
 
     def state_fluents(self):
         """
@@ -189,7 +121,6 @@ class MDP(object):
         """
         return sorted(self._engine.declarations('action'), key=str)
 
-
     def structured_transition(self, state, action, cache=None):
         """
         Return the probabilities of next state fluents grouped by factors
@@ -211,9 +142,9 @@ class MDP(object):
                 p_false = 1.0 - p_true
                 
                 # Inyección de ramas con masa probabilística válida
-                if p_false > 1e-6:
+                if p_false > self.epsilon_thr:
                     group_data.append((None, p_false))
-                if p_true > 1e-6:
+                if p_true > self.epsilon_thr:
                     group_data.append((term, p_true))
             
             # Si el esquema dicta que es un grupo ADS (> 1 elemento)
@@ -221,7 +152,7 @@ class MDP(object):
                 for term in factor_template:
                     p = prob_map.get(str(term), 0.0)
                     # Filtro de matrices dispersas (Sparse filter)
-                    if p > 1e-6:
+                    if p > self.epsilon_thr:
                         group_data.append((term, p))
                         
             structured_result.append(group_data)
@@ -265,7 +196,11 @@ class MDP(object):
         """
         evidence = state.copy()
         evidence.update(action)
-        return self._engine.evaluate(self.__next_state_queries, evidence)
+        _t0 = time.perf_counter()
+        result = self._engine.evaluate(self.__next_state_queries, evidence)
+        self._wmc_t_transition += time.perf_counter() - _t0
+        self._wmc_n_transition += 1
+        return result
 
     def transition_model(self):
         """
@@ -324,12 +259,41 @@ class MDP(object):
         """
 
         evidence = state.copy()
-        evidence.update(action)     
+        evidence.update(action)
+        _t0 = time.perf_counter()
+        raw = self._engine.evaluate(self.__reward_queries, evidence)
+        self._wmc_t_reward += time.perf_counter() - _t0
+        self._wmc_n_reward += 1
         total = 0
-        for term, prob in self._engine.evaluate(self.__reward_queries, evidence):
+        for term, prob in raw:
             total += prob * self.__utilities[term].value
         return total
 
+
+    def reset_wmc_stats(self):
+        """Resetea los contadores de evaluaciones WMC (para aislar una fase de medición)."""
+        self._wmc_n_transition = 0
+        self._wmc_t_transition = 0.0
+        self._wmc_n_reward     = 0
+        self._wmc_t_reward     = 0.0
+
+    def get_wmc_stats(self):
+        """
+        Retorna estadísticas de evaluaciones WMC reales (excluye cache hits).
+
+        :rtype: dict con n_wmc_transition, t_wmc_transition, t_per_transition,
+                         n_wmc_reward, t_wmc_reward, t_per_reward
+        """
+        n_t = self._wmc_n_transition
+        n_r = self._wmc_n_reward
+        return {
+            'n_wmc_transition':  n_t,
+            't_wmc_transition':  self._wmc_t_transition,
+            't_per_transition':  self._wmc_t_transition / n_t if n_t > 0 else 0.0,
+            'n_wmc_reward':      n_r,
+            't_wmc_reward':      self._wmc_t_reward,
+            't_per_reward':      self._wmc_t_reward / n_r if n_r > 0 else 0.0,
+        }
 
     #Devuelve el modelo de recompensas de todas las transiciones validas.
     def reward_model(self):

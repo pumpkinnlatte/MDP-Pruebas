@@ -93,7 +93,7 @@ class MDPDebugger(object):
                 f.write("-" * 60 + "\n")
 
                 for index, node in enumerate(db.iter_raw()):
-                    f.write("{:<6} | {}\n".format(index, str(node)))
+                    f.write("{:<6} | {}\n".format(index, node))
 
         except IOError as e:
             print("[ERROR] Failed to write debug file: {}".format(e))

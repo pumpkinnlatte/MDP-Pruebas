@@ -44,7 +44,6 @@ utility(clima(soleado, 1), 5).
 0.2::clima(soleado, 1); 0.4::clima(nublado, 1); 0.4::clima(lluvioso, 1) :-
     clima(lluvioso, 0), viento(0), action(esperar).
 
-
 % Viento
 % P(Viento | Viento, esperar)
 0.7::viento(1) :- viento(0), action(esperar).

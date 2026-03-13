@@ -1,0 +1,210 @@
+% ==============================================================================
+% FLUENTES DE ESTADO MULTIVALUADOS (multivalued) — MDP-ProbLog
+% ==============================================================================
+
+% Un fluente multivaluado (multivalued) es una variable de estado que toma
+% exactamente uno de N valores mutuamente excluyentes en cada instante del MDP.
+% En el FluentSchema se registra como un factor de base N (one-hot encoding).
+%
+% Requisito: un grupo multivalued requiere estrictamente N >= 2 opciones.
+% Un grupo con un solo elemento es una constante, no una variable estocastica,
+% y produce un FluentCardinalityError.
+
+% ==============================================================================
+% 1. DECLARACION EXPLICITA — state_fluent/2
+% ==============================================================================
+
+% La etiqueta explicita es:
+%
+%   multivalued — valida para cualquier aridad (0, 1, >= 2). Todos los groundings
+%                 del fluente forman un unico grupo mutuamente excluyente.
+
+% ------------------------------------------------------------------------------
+% 1.1 Etiqueta 'multivalued'
+% ------------------------------------------------------------------------------
+
+% Sintaxis:
+%   state_fluent(<termino>, multivalued).
+%   state_fluent(<termino>, multivalued) :- <cuerpo>.
+
+% --- Ejemplo 1.1a: Aridad 1 con disyuncion anotada como origen ---
+
+    state_fluent(semaforo(X), multivalued) :- colores(X).
+
+    1/3::colores(rojo);
+    1/3::colores(amarillo);
+    1/3::colores(verde).
+
+%   Grounding produce:
+    state_fluent(semaforo(rojo), multivalued).
+    state_fluent(semaforo(amarillo), multivalued).
+    state_fluent(semaforo(verde), multivalued).
+
+%   Resultado en el FluentSchema:
+%     Grupo multivalued semaforo: [rojo, amarillo, verde]  (base 3)
+
+% --- Ejemplo 1.1b: Aridad 1 con hechos estaticos como origen ---
+
+%   Cuando se usa la etiqueta explicita 'multivalued', el origen de los valores es
+%   irrelevante para el motor de inferencia. No importa si provienen de
+%   disyunciones anotadas o de hechos estaticos; el sistema los empaqueta
+%   en un grupo mutuamente excluyente.
+
+    state_fluent(modo(X), multivalued) :- modos(X).
+
+    modos(automatico).
+    modos(manual).
+    modos(apagado).
+
+%   Resultado: Grupo multivalued modo: [automatico, manual, apagado]  (base 3)
+
+% ==============================================================================
+% 2. DECLARACION IMPLICITA — state_fluent/1 (inferencia automatica)
+% ==============================================================================
+
+% Cuando se omite la etiqueta (state_fluent/1), el motor de inferencia clasifica
+% automaticamente el fluente.
+
+% ------------------------------------------------------------------------------
+% 2.1 Aridad 0 — siempre bool
+% ------------------------------------------------------------------------------
+
+%   Un termino sin argumentos no tiene dominio de valores sobre el cual iterar.
+%   El motor lo clasifica como bool. Ver bool_sintaxis.txt para detalles.
+
+% ------------------------------------------------------------------------------
+% 2.2 Aridad 1 — inferencia por vocabulario ADS
+% ------------------------------------------------------------------------------
+
+%   El motor recopila los valores ende todas las instancias
+%   aterrizadas del fluente y verifica si son un subconjunto del vocabulario
+%   de alguna disyuncion anotada declarada en la ClauseDB.
+
+    state_fluent(semaforo(X)) :- colores(X).
+
+    1/3::colores(rojo);
+    1/3::colores(amarillo);
+    1/3::colores(verde).
+
+%   Valores en posicion 0: {rojo, amarillo, verde}
+%   Vocabulario ADS de colores/1: {rojo, amarillo, verde}
+%   {rojo, amarillo, verde} ⊆ {rojo, amarillo, verde} → true
+%   Se clasifica como multivalued.
+
+%   Si los valores NO provienen de una disyuncion anotada, se clasifica como
+%   bool. Ver bool_sintaxis.txt, seccion 2.2 para ese caso.
+
+% ------------------------------------------------------------------------------
+% 2.3 Aridad >= 2 — inferencia automatica
+% ------------------------------------------------------------------------------
+
+%   La inferencia automatica tambien opera sobre terminos con 2 o mas
+%   argumentos. Como solo existe una interpretacion posible, el motor
+%   clasifica automaticamente: si los valores aterrizados provienen de una
+%   disyuncion anotada, todos los groundings forman un unico grupo
+%   mutuamente excluyente (multivalued); de lo contrario se clasifica como bool.
+
+    state_fluent(sensor(X, Y, Z)) :- hab(X), disp(Y), med(Z).
+
+%   Si los valores provienen de disyunciones anotadas, se clasifica como
+%   multivalued con todos los groundings en un solo grupo.
+%   Si no, se clasifica como bool.
+
+% ==============================================================================
+% 3. CARDINALIDAD MINIMA
+% ==============================================================================
+
+% Todo grupo multivalued requiere estrictamente al menos 2 opciones en su dominio.
+% El sistema Mixed-Radix necesita una base b >= 2 para iterar un factor.
+
+% --- Ejemplo 3a: Declaracion invalida (cardinalidad insuficiente) ---
+
+    state_fluent(semaforo(X), multivalued) :- colores(X).
+
+    colores(verde).
+
+%   Resultado: Grupo semaforo tiene dominio {verde} — cardinalidad 1.
+%   FluentCardinalityError: Multivalued group 'semaforo' has only 1 option(s):
+%     {'verde'}. A mutually exclusive group requires at least 2 options.
+
+% --- Ejemplo 3b: Hardcoding sin dominio — invalido ---
+
+    state_fluent(semaforo(verde), multivalued).
+
+%   Resultado: Un unico termino aterrizado. Cardinalidad = 1. Mismo error.
+
+%   CONCLUSION: La manera de declarar fluentes multivaluados es mediante
+%   una regla parametrica que genere al menos 2 instancias aterrizadas con
+%   valores distintos en la posicion mutable.
+
+
+% ==============================================================================
+% 4. COLAPSOS ESTRUCTURALES Y ANTIPATRONES
+% ==============================================================================
+
+% Un colapso estructural ocurre cuando el modelado incorrecto destruye la
+% independencia de las variables del MDP.
+
+% --- Ejemplo 5b: Duplicado entre modos implicito y explicito ---
+
+%   Si un fluente aparece tanto en state_fluent/1 como en state_fluent/2:
+
+    state_fluent(semaforo(X)) :- colores(X).
+    state_fluent(semaforo(X), multivalued) :- colores(X).
+
+%   El motor emite un Warning V3 y la declaracion explicita toma precedencia.
+
+% ==============================================================================
+% 5. RESUMEN DE ETIQUETAS Y REGLAS DE VALIDACION
+% ==============================================================================
+
+%   Etiqueta       Aridad     Comportamiento
+%   --------       ------     --------------------------------------------------------
+%   (implicito)    0          → siempre bool
+%   (implicito)    1          → inferencia por vocabulario ADS (bool o multivalued)
+%   (implicito)    >= 2       → inferencia automatica (multivalued si AD, bool si no)
+%   bool           cualquiera → fuerza clasificacion booleana
+%   multivalued    cualquiera → fuerza clasificacion multivalued (todos los groundings
+%                                forman un unico grupo mutuamente excluyente)
+
+%   Validaciones:
+%   V1 — Etiqueta desconocida (no bool, multivalued)   → FluentDeclarationError
+%   V2 — Cardinalidad del grupo < 2                    → FluentCardinalityError
+%   V3 — Duplicado entre modos implicito/explicito    → Warning
+
+% ==============================================================================
+% 6. ALCANCE Y LIMITACIONES DEL FRAMEWORK
+% ==============================================================================
+
+% 6.1 Flexibilidad: Representacion Relacional
+%   El uso de logica de primer orden permite definir espacios de estado mediante
+%   reglas parametricas. El motor genera el producto cartesiano automaticamente
+%   via el grounding de ProbLog. 
+
+% 7.2 Limitacion Computacional:
+%   Aunque la sintaxis permite representar MDPs masivos con pocas lineas,
+%   ProbLog realiza un proceso de grounding que convierte las reglas abstractas
+%   en un circuito booleano proposicional. Si el conocimiento base contiene
+%   demasiadas entidades, el producto cartesiano se vuelve muy grande durante
+%   el proceso de compilacion (ClauseDB), antes de que inicie la iteracion de valor.
+
+% 7.3 Reglas de persistencia
+%   ProbLog asume la suposicion del mundo cerrado (Closed-World Assumption).
+%   Lo que no se declara explicitamente como verdadero es falso por defecto.
+%   MDP-ProbLog no tiene un motor de inercia nativo. El usuario debe escribir
+%   reglas de persistencia explicitas para variables que no cambian bajo
+%   ciertas acciones:
+%     1.0::estado(X, 1) :- estado(X, 0), accion_irrelevante.
+
+%   En el caso de los fluentes multivaluados, estas reglas deben de contemplar
+%   todos los valores posibles del fluente y sus valores de probabilidad:
+
+    0.50::estado(<valor1>, 1);
+    0.00::estado(<valor2>, 1);
+    0.25::estado(<valor3>, 1);
+    0.25::estado(<valor4>, 1) :- estado(X, 0), accion.
+
+    0.0::estado(<valor1>, 1);
+    0.0::estado(<valor2>, 1);
+    0.0::estado(<valor3>, 1);
+    1.0::estado(X, 1) :- estado(X, 0), accion_irrelevante.
