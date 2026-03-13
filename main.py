@@ -41,8 +41,8 @@ def show_state_space(schema):
 
 if __name__ == "__main__":
 
-    #prog_dir = "tests/model_tests/mitchell_grid/base_models/gridMultivalued.pl"
-    prog_dir = "tests/model_tests/student/student_MDP02.pl"
+    prog_dir = "tests/model_tests/mitchell_grid/multivalued/multivalued_grid02.pl"
+    #prog_dir = "tests/model_tests/student/student_MDP02.pl"
     #prog_dir = "tests/semaforo.pl"
     #prog_dir = "tests/model_tests/rn_gridworld/rn_gridworld01.pl"
     #prog_dir = "tests/model_tests/mitchell_grid/boolean/boolean_grid02.pl"
