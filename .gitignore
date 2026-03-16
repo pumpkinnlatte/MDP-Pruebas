@@ -1,8 +1,0 @@
-NOTAS-OPTIMIZACION
-.venv/
-__pycache__/
-pruebas
-src/debug/
-.pytest_cache/
-.vscode/
-CLAUDE.md
