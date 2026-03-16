@@ -161,10 +161,8 @@ class FluentSchema(object):
         :type timestep: int
         :rtype: list of list of problog.logic.Term
         """
-        return [
-            [Fluent.create_fluent(term, timestep) for term in group]
-            for group in self.__factors
-        ]
+        return [[Fluent.create_fluent(term, timestep) for term in group] for group in self.__factors]
+        
 
     def get_flat_list(self):
         """

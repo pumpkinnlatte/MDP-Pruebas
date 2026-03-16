@@ -5,7 +5,7 @@
 
 ## 1. Resumen ejecutivo
 
-- **Rango de iteraciones de Bellman:** de 2 (grid00, |S|=2) a 16 (grid07, |S|=256).
+- **Rango de iteraciones de Bellman:** de 2 (grid00, S=2) a 16 (grid07, S=256).
 - **`n_iterations` invariante** respecto a γ y ε: sí — el criterio de convergencia se satisface en el mismo número de pasos independientemente de las tolerancias configuradas.
 - **Escalado super-polinomial de t_vi:** α_tvi ∈ [1.62, 2.76] entre grids consecutivos (crecimiento super-cuadrático).
 - **En grid07 (256 estados):** t_vi ≈ 2.08 min, t_compile ≈ 2.812 s → Value Iteration domina el presupuesto de tiempo total.
@@ -16,7 +16,7 @@
 
 Una fila por combinación (grid_id, γ, ε), ordenada por grid_id → γ → ε.
 
-| grid_id | |S| | gamma | epsilon | t_prepare | t_vi     | n_iterations | t_per_iter |
+| grid_id | S | gamma | epsilon | t_prepare | t_vi     | n_iterations | t_per_iter |
 | ------- | --- | ----- | ------- | --------- | -------- | ------------ | ---------- |
 | grid00  | 2   | 0.90  | 0.0001  | 25.7 ms   | 2.6 ms   | 2            | 1.3 ms     |
 | grid00  | 2   | 0.90  | 0.1000  | 26.0 ms   | 2.6 ms   | 2            | 1.3 ms     |
@@ -53,11 +53,11 @@ Una fila por combinación (grid_id, γ, ε), ordenada por grid_id → γ → ε.
 
 ## 3. Análisis de escalado de Value Iteration
 
-Caso base: γ=0.90, ε=0.1. α = Δlog(métrica)/Δlog(|S|).
+Caso base: γ=0.90, ε=0.1. α = Δlog(métrica)/Δlog(S).
 
 α ≈ 1 → lineal · α ≈ 2 → cuadrático · α >> 2 → super-polinomial
 
-| grid   | |S| | t_vi     | α_tvi | n_iterations | α_iter | t_per_iter | α_tpi |
+| grid   | S | t_vi     | α_tvi | n_iterations | α_iter | t_per_iter | α_tpi |
 | ------ | --- | -------- | ----- | ------------ | ------ | ---------- | ----- |
 | grid00 | 2   | 2.6 ms   | —     | 2            | —      | 1.3 ms     | —     |
 | grid01 | 4   | 8.0 ms   | 1.62  | 2            | 0.00   | 4.0 ms     | 1.62  |
@@ -74,9 +74,9 @@ Caso base: γ=0.90, ε=0.1. α = Δlog(métrica)/Δlog(|S|).
 
 Separación entre tiempo de evaluación WMC (sustitución de pesos en el circuito) y aritmética pura de Bellman. El caché en `mdp.py` garantiza que las evaluaciones WMC ocurren **una sola vez** (iteración 1); las K-1 iteraciones siguientes son 100% cache hits → solo aritmética Bellman.
 
-**Predicción:** `n_wmc_transition = n_wmc_reward = |S| × |A|` (5 acciones en Mitchell Grid).
+**Predicción:** `n_wmc_transition = n_wmc_reward = S × |A|` (5 acciones en Mitchell Grid).
 
-| grid   | |S| | n_wmc_trans | n_wmc_rew | pred_n | ok? | t_wmc_trans | t_per_trans | t_wmc_rew | t_per_rew | t_bellman | frac_wmc |
+| grid   | S | n_wmc_trans | n_wmc_rew | pred_n | ok? | t_wmc_trans | t_per_trans | t_wmc_rew | t_per_rew | t_bellman | frac_wmc |
 | ------ | --- | ----------- | --------- | ------ | --- | ----------- | ----------- | --------- | --------- | --------- | -------- |
 | grid00 | 2   | 10          | 10        | 10     | ✓   | 1.3 ms      | 0.134 ms    | 0.728 ms  | 0.073 ms  | 0.528 ms  | 79.6%    |
 | grid01 | 4   | 20          | 20        | 20     | ✓   | 5.1 ms      | 0.254 ms    | 2.0 ms    | 0.099 ms  | 0.901 ms  | 88.7%    |
@@ -87,14 +87,14 @@ Separación entre tiempo de evaluación WMC (sustitución de pesos en el circuit
 | grid06 | 128 | 640         | 640       | 640    | ✓   | 16.980 s    | 26.5 ms     | 1.497 s   | 2.3 ms    | 1.168 s   | 94.1%    |
 | grid07 | 256 | 1280        | 1280      | 1280   | ✓   | 2.05 min    | 95.9 ms     | 5.930 s   | 4.6 ms    | 4.481 s   | 96.6%    |
 
-**Hallazgo clave:** la fracción WMC/t_vi cae de 80% (grid00, |S|=2) a 97% (grid07, |S|=256). En grids grandes, el costo de aritmética Bellman domina sobre el costo de evaluación WMC. Esto implica que optimizar el circuito compilado (compilación más rápida) tiene rendimiento decreciente para dominios grandes: el cuello de botella se desplaza hacia la recursión `__expected_value` de Value Iteration.
+**Hallazgo clave:** la fracción WMC/t_vi cae de 80% (grid00, S=2) a 97% (grid07, S=256). En grids grandes, el costo de aritmética Bellman domina sobre el costo de evaluación WMC. Esto implica que optimizar el circuito compilado (compilación más rápida) tiene rendimiento decreciente para dominios grandes: el cuello de botella se desplaza hacia la recursión `__expected_value` de Value Iteration.
 
 ## 4. Sensibilidad a γ y ε
 
 Ratio t_vi(γ=0.99)/t_vi(γ=0.90) y t_vi(ε=0.0001)/t_vi(ε=0.1) por grid.
 Valores ≈ 1.0 indican que los parámetros de convergencia no afectan el costo.
 
-| grid   | |S| | t_vi(γ=0.90,ε=0.1) | t_vi(γ=0.99,ε=0.1) | ratio_γ | t_vi(γ=0.90,ε=0.0001) | ratio_ε |
+| grid   | S | t_vi(γ=0.90,ε=0.1) | t_vi(γ=0.99,ε=0.1) | ratio_γ | t_vi(γ=0.90,ε=0.0001) | ratio_ε |
 | ------ | --- | ------------------ | ------------------ | ------- | --------------------- | ------- |
 | grid00 | 2   | 2.6 ms             | 2.6 ms             | 0.994   | 2.6 ms                | 0.989   |
 | grid01 | 4   | 8.0 ms             | 8.1 ms             | 1.012   | 8.4 ms                | 1.054   |
@@ -111,7 +111,7 @@ Valores ≈ 1.0 indican que los parámetros de convergencia no afectan el costo.
 
 Combina t_compile de Fase A (`multivalued`, `ddnnf`) con t_vi de Fase B (γ=0.90, ε=0.1). `t_total = t_prepare(FA) + t_vi(FB)` — nota: t_prepare de Fase A incluye compilación; t_vi de Fase B excluye compilación.
 
-| grid_id | |S| | t_compile (FA) | t_vi (FB) | t_total  | fracción_vi |
+| grid_id | S | t_compile (FA) | t_vi (FB) | t_total  | fracción_vi |
 | ------- | --- | -------------- | --------- | -------- | ----------- |
 | grid00  | 2   | 5.2 ms         | 2.6 ms    | 29.8 ms  | 8.7%        |
 | grid01  | 4   | 8.1 ms         | 8.0 ms    | 50.6 ms  | 15.7%       |
@@ -128,26 +128,26 @@ Combina t_compile de Fase A (`multivalued`, `ddnnf`) con t_vi de Fase B (γ=0.90
 
 ### 6.1 Proposición 3.1 — Complejidad del cómputo recursivo de VI
 
-La Proposición 3.1 (Sec 3.4) establece que el costo de cada iteración de Bellman sobre la representación factorizada `multivalued` es O(∏ mₖ), donde mₖ es la cardinalidad del k-ésimo factor. Para el dominio Mitchell Grid con un único factor de base K=|S|, esto implica O(|S|) por iteración en el mejor caso (con filtro sparse) y O(|S|²) en el caso denso.
+La Proposición 3.1 (Sec 3.4) establece que el costo de cada iteración de Bellman sobre la representación factorizada `multivalued` es O(∏ mₖ), donde mₖ es la cardinalidad del k-ésimo factor. Para el dominio Mitchell Grid con un único factor de base K=S, esto implica O(S) por iteración en el mejor caso (con filtro sparse) y O(S²) en el caso denso.
 
 **Datos observados:** α_tpi (escalado de t_per_iter) varía entre grids. El filtro sparse (p < 1e-6) mantiene el crecimiento sub-cuadrático en grids pequeños, pero el efecto se atenúa en grids grandes donde más transiciones tienen probabilidad no negligible.
 
-| grid   | |S| | t_per_iter | α_tpi | régimen observado |
+| grid   | S | t_per_iter | α_tpi | régimen observado |
 | ------ | --- | ---------- | ----- | ----------------- |
-| grid00 | 2   | 1.3 ms     | —     | O(|S|) con sparse |
-| grid01 | 4   | 4.0 ms     | 1.62  | O(|S|¹⁺) empírico |
-| grid02 | 8   | 7.0 ms     | 0.83  | O(|S|) con sparse |
-| grid03 | 16  | 32.1 ms    | 2.19  | O(|S|¹⁺) empírico |
-| grid04 | 32  | 71.4 ms    | 1.15  | O(|S|) con sparse |
-| grid05 | 64  | 408.1 ms   | 2.51  | O(|S|¹⁺) empírico |
-| grid06 | 128 | 1.310 s    | 1.68  | O(|S|¹⁺) empírico |
-| grid07 | 256 | 8.309 s    | 2.67  | O(|S|¹⁺) empírico |
+| grid00 | 2   | 1.3 ms     | —     | O(S) con sparse |
+| grid01 | 4   | 4.0 ms     | 1.62  | O(S¹⁺) empírico |
+| grid02 | 8   | 7.0 ms     | 0.83  | O(S) con sparse |
+| grid03 | 16  | 32.1 ms    | 2.19  | O(S¹⁺) empírico |
+| grid04 | 32  | 71.4 ms    | 1.15  | O(S) con sparse |
+| grid05 | 64  | 408.1 ms   | 2.51  | O(S¹⁺) empírico |
+| grid06 | 128 | 1.310 s    | 1.68  | O(S¹⁺) empírico |
+| grid07 | 256 | 8.309 s    | 2.67  | O(S¹⁺) empírico |
 
 ### 6.2 Número de iteraciones y propagación global
 
 El número de iteraciones de Bellman necesarias para convergencia refleja el *diámetro efectivo* del MDP: cuántos pasos se necesitan para que la información de recompensa se propague desde el estado meta hasta los estados más lejanos. Para el Mitchell Grid, n_iterations crece de 2 (grid00, 1D-2 celdas) a 16 (grid07, 16×16 celdas), consistente con el diámetro del grid.
 
-| grid   | |S| | dimensiones | n_iterations | α_iter |
+| grid   | S | dimensiones | n_iterations | α_iter |
 | ------ | --- | ----------- | ------------ | ------ |
 | grid00 | 2   | 1×1         | 2            | —      |
 | grid01 | 4   | 2×2         | 2            | 0.00   |
@@ -158,7 +158,7 @@ El número de iteraciones de Bellman necesarias para convergencia refleja el *di
 | grid06 | 128 | 11×11       | 15           | 0.91   |
 | grid07 | 256 | 16×16       | 16           | 0.09   |
 
-**Nota:** el diámetro de un grid k×k es proporcional a k = √|S|, lo que predice α_iter ≈ 0.5. Los datos muestran α_iter consistente con esta predicción en la mayoría de grids.
+**Nota:** el diámetro de un grid k×k es proporcional a k = √S, lo que predice α_iter ≈ 0.5. Los datos muestran α_iter consistente con esta predicción en la mayoría de grids.
 
 ## 7. Experimentos pendientes
 
@@ -169,7 +169,7 @@ Para validar directamente Proposición 7.1 y Sección 7.2 del documento de valid
 | Variable | Rango propuesto |
 |----------|----------------|
 | Cardinalidad N (grupo multivaluado) | 2, 4, 8, 16, 32, 64 |
-| |S| | fijo en 64 o variable con N |
+| S | fijo en 64 o variable con N |
 | Métricas objetivo | `gp_atoms`, `circuit_nodes`, `t_compile`, `t_vi` |
 
 ### Comparación de tipos de modelo en VI

@@ -38,7 +38,7 @@ Todos los modelos representan un agente navegando en un grid 2D con 5 acciones: 
 | 06 | 7 fluentes | `coor(X,Y)` 8×16 | `x(X)`×`y(Y)` 8×16 | 128 | 5 |
 | 07 | 8 fluentes | `coor(X,Y)` 16×16 | `x(X)`×`y(Y)` 16×16 | 256 | 5 |
 
-Los archivos `.pl` viven en:
+Los archivos `.pl` están en:
 ```
 tests/model_tests/mitchell_grid/
 ├── boolean/        boolean_grid00.pl … boolean_grid07.pl

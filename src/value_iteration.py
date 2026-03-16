@@ -36,7 +36,7 @@ class ValueIteration(object):
     def __init__(self, mdp):
         self._mdp = mdp
 
-    def run(self, gamma=0.9, epsilon=0.1, audit=False, audit_tolerance=1e-9):
+    def run(self, gamma=0.9, epsilon=0.1):
         """
         Execute value iteration until convergence.
         Return optimal value function, greedy policy and number
@@ -46,16 +46,8 @@ class ValueIteration(object):
         :type gamma: float
         :param epsilon: maximum error
         :type epsilon: float
-        :param audit: if True, run mass conservation pre-flight check
-        :type audit: bool
-        :param audit_tolerance: tolerance for mass deviation (default 1e-9)
-        :type audit_tolerance: float
         :rtype: triple (dict(state, value), dict(policy, action), float)
         """
-        if audit:
-            from src.auditor import MDPAuditor
-            auditor = MDPAuditor(self._mdp)
-            auditor.raise_on_violation(tolerance=audit_tolerance)
 
         V = {}
         policy = {}
@@ -95,7 +87,7 @@ class ValueIteration(object):
                 V[i] = max_value                            
                 policy[i] = greedy_action                  
 
-                V_history[iteration] = V.copy()
+            V_history[iteration] = V.copy()
 
             # Criterio de convergencia
             if max_residual <= 2 * epsilon * (1 - gamma) / gamma:

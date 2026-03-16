@@ -1,3 +1,23 @@
+"""
+engine - ProbLog adapter
+------------------------
+
+This module provides a thin adapter around ProbLog's Python interface. It
+standardizes the workflow required by MDP-ProbLog:
+
+    1. Parse a ProbLog program into a ClauseDB (see :class:`~Engine`).
+    2. Ground the program w.r.t. a set of query terms (see :meth:`Engine.relevant_ground`).
+    3. Compile the ground program into an evaluatable knowledge base (see :meth:`Engine.compile`).
+    4. Evaluate compiled query nodes under evidence (see :meth:`Engine.evaluate`).
+
+The adapter also exposes convenience methods to inspect and inject content into
+the underlying ClauseDB:
+
+    * facts and rules (see :meth:`Engine.add_fact`, :meth:`Engine.add_rule`)
+    * utility assignments (see :meth:`Engine.add_assignment`)
+    * annotated disjunctions (see :meth:`Engine.add_annotated_disjunction`)
+"""
+
 
 from problog.program import PrologString
 from problog.engine  import DefaultEngine
@@ -7,37 +27,47 @@ from collections import defaultdict
 
 class Engine(object):
     """
-    Adapter class to ProbLog grounding and query engine.
+    Adapter around ProbLog grounding and query evaluation.
 
-    :param program: a valid MDP-ProbLog program
+    The adapter stores three representations of the program:
+
+        * ``self._db``: ClauseDB prepared from the input program
+        * ``self._gp``: ground program (set by :meth:`relevant_ground`)
+        * ``self._knowledge``: compiled knowledge base (set by :meth:`compile`)
+
+    :param program: A valid MDP-ProbLog program string.
     :type program: str
     """
 
     def __init__(self, program):
+        """Initialize the ProbLog engine and prepare the input program."""
         self._engine = DefaultEngine() 
-        self._db = self._engine.prepare(PrologString(program)) #Transforma el modelo Prolog hacia un representación interna. (https://dtai.cs.kuleuven.be/problog/tutorial/advanced/01_python_interface.html) 
-        self._gp = None         #ground program
-        self._knowledge = None  #knowledge database
+        self._db = self._engine.prepare(PrologString(program))
+        self._gp = None         # ground program (after relevant_ground)
+        self._knowledge = None  # compiled knowledge base (after compile)
 
-    #Usado para obtener los valores declarados de un cierto tipo con aridad 1
     def declarations(self, declaration_type):
         """
-        Return a list of all terms of type `declaration_type`.
+        Return all declared terms for a predicate of arity 1.
 
-        :param declaration_type: declaration type.
+        This queries the ClauseDB for facts of the form `declaration_type`
+
+        :param declaration_type: Predicate name to query
         :type declaration_type: str
-        :rtype: list of problog.logic.Term
+        :return: List of matching terms.
+        :rtype: list[problog.logic.Term]
         """
         return [t[0] for t in self._engine.query(self._db, Term(declaration_type, None))] #ProbLog.
 
     #Usado para obtener los valores asignados de un cierto tipo con aridad 2
     def assignments(self, assignment_type):
         """
-        Return a dictionary of assignments of type `assignment_type`.
+        Return assignments for a predicate of arity 2 as a dictionary.
 
-        :param assignment_type: assignment type.
+        :param assignment_type: Predicate name to query.
         :type assignment_type: str
-        :rtype: dict of (problog.logic.Term, problog.logic.Constant) items.
+        :return: Mapping from assigned term to its value.
+        :rtype: dict[problog.logic.Term, problog.logic.Constant]
         """
         return dict(self._engine.query(self._db, Term(assignment_type, None, None)))
 
@@ -45,10 +75,19 @@ class Engine(object):
 
     def get_instructions_table(self):
         """
-        Return the table of instructions separated by instruction type
-        as described in problog.engine.ClauseDB.
+        Inspect the ClauseDB instruction table grouped by instruction type.
 
-        :rtype: dict of (str, list of (node,namedtuple))
+        This is a debugging/inspection helper that iterates over ProbLog's internal
+        ClauseDB node list and groups nodes by the instruction prefix (e.g. ``fact``,
+        ``clause``, ``choice``).
+
+        :return: Mapping from instruction type to a list of ``(node_id, instruction)`` pairs.
+        :rtype: dict[str, list[tuple[int, object]]]
+
+        .. warning::
+
+            This method depends on ProbLog internal attributes (ClauseDB node storage)
+            and may break if ProbLog changes its internal representation.
         """
         instructions = {}
         for node, instruction in enumerate(self._db._ClauseDB__nodes):
@@ -64,24 +103,26 @@ class Engine(object):
 
     def add_fact(self, term, probability=None):
         """
-        Add a new `term` with a given `probability` to the program database.
-        Return the corresponding node number.
+        Insert a fact into the ClauseDB.
 
-        :param term: a predicate
+        :param term: Fact term to add.
         :type term: problog.logic.Term
-        :param probability: a number in [0,1]
-        :type probability: float
+        :param probability: Probability in [0, 1] for a probabilistic fact.
+        :type probability: float or None
+        :return: ClauseDB node id for the inserted fact.
         :rtype: int
         """
         return self._db.add_fact(term.with_probability(Constant(probability)))
 
     def get_fact(self, node):
         """
-        Return the fact in the table of instructions corresponding to `node`.
+        Return the ClauseDB fact stored at ``node``.
 
-        :param node: identifier of fact in table of instructions
+        :param node: ClauseDB node id.
         :type node: int
+        :return: The fact instruction.
         :rtype: problog.engine.fact
+        :raises IndexError: If ``node`` does not correspond to a fact.
         """
         fact = self._db.get_node(node)
         if not str(fact).startswith('fact'):
@@ -90,13 +131,13 @@ class Engine(object):
 
     def add_rule(self, head, body):
         """
-        Add a new rule defined by a `head` and `body` arguments
-        to the program database. Return the corresponding node number.
+        Insert a rule into the ClauseDB.
 
-        :param head: a predicate
+        :param head: Rule head.
         :type head: problog.logic.Term
-        :param body: a list of literals
+        :param body: Body literals combined with conjunction.
         :type body: list of problog.logic.Term or problog.logic.Not
+        :return: ClauseDB node id for the inserted clause.
         :rtype: int
         """
         b = body[0]
@@ -106,11 +147,13 @@ class Engine(object):
 
     def get_rule(self, node):
         """
-        Return the rule from the ClauseDB corresponding to `node`.
+        Return the ClauseDB rule stored at ``node``.
 
-        :param node: identifier of rule in table of instructions
+        :param node: ClauseDB node id.
         :type node: int
+        :return: The clause instruction.
         :rtype: problog.engine.clause
+        :raises IndexError: If ``node`` does not correspond to a clause.
         """
         rule = self._db.get_node(node)
         if not str(rule).startswith('clause'):
@@ -124,10 +167,11 @@ class Engine(object):
         Add a new utility assignment of `value` to `term` in the program database.
         Return the corresponding node number.
 
-        :param term: a predicate
+        :param term: Term being assigned utility.
         :type term: problog.logic.Term
-        :param value: a numeric value
+        :param value: Utility value.
         :type value: float
+        :return: ClauseDB node id for the inserted assignment fact.
         :rtype: int
         """
         args = (term.with_probability(None), Constant(1.0 * value))
@@ -138,9 +182,11 @@ class Engine(object):
         """
         Return the assignment from the ClauseDB corresponding to `node`.
 
-        :param node: identifier of assignment in table of instructions
+        :param node: ClauseDB node id.
         :type node: int
-        :rtype: pair of (problog.logic.Term, problog.logic.Constant)
+        :return: The (term, value) pair.
+        :rtype: tuple of (problog.logic.Term, problog.logic.Constant)
+        :raises IndexError: If ``node`` does not correspond to a utility assignment.
         """
         fact = self._db.get_node(node)
         if not (str(fact).startswith('fact') and fact.functor == 'utility'):
@@ -181,12 +227,13 @@ class Engine(object):
 
     def get_annotated_disjunction(self, nodes):
         """
-        Return the list of choice nodes in the table of instructions
-        corresponding to `nodes`.
+        Return the ProbLog ``choice`` nodes referenced by ``nodes``.
 
-        :param nodes: list of node identifiers
+        :param nodes: ClauseDB node ids.
         :type nodes: list of int
+        :return: Choice instructions.
         :rtype: list of problog.engine.choice
+        :raises IndexError: If any node id is not a choice node.
         """
         choices = [ self._db.get_node(node) for node in nodes ]
         for choice in choices:
@@ -196,30 +243,24 @@ class Engine(object):
   
     def relevant_ground(self, queries):
         """
-        Create ground program with respect to `queries`.
+        Ground the program with respect to a set of query terms.
 
-        :param queries: list of predicates
+        After calling this method, :meth:`compile` can be used.
+
+        :param queries: Terms that define the relevant portion of the program.
         :type queries: list of problog.logic.Term
         """
         self._gp = self._engine.ground_all(self._db, queries=queries)
     
     def compile(self, terms=[], backend=None):
-
         """
-        Crea una base de conocimiento compilada a partir de un programa aterrizado.
-        Retorna una distribución de `terms` a nodos en la base de conocimiento compilada.
-
-        :param backend: None (d-DNNF por defecto) | 'sdd' | 'bdd'
-        """
-
-        """
-        Create compiled knowledge database from ground program.
-        Return mapping of `terms` to nodes in the compiled knowledge database.
+        Compile the grounded program into an evaluatable knowledge base.
 
         :param terms: list of predicates
-        :type terms: list of problog.logic.Term
-        :param backend: evaluatable backend name, None for default d-DNNF
+        :type terms: list of problog.logic.Term or None
+        :param backend: Evaluatable backend name. Use None for the default (d-DNNF).
         :type backend: str or None
+        :return: Mapping of each provided term to its compiled node id.
         :rtype: dict of (problog.logic.Term, int)
         """
         self._knowledge = get_evaluatable(backend).create_from(self._gp)
@@ -230,7 +271,7 @@ class Engine(object):
 
     def evaluate(self, queries, evidence):
         """
-        Compute probabilities of `queries` given `a`.
+        Evaluate compiled query nodes under evidence.
 
         :param queries: mapping of predicates to nodes
         :type queries: dict of (problog.logic.Term, int)
@@ -246,13 +287,14 @@ class Engine(object):
 
     def get_ads_metadata(self):
         """
-        Escanea la ClauseDB extrayendo los valores generados estrictamente por Disyunciones Anotadas (AD)
-        utilizando los nodos 'choice' nativos de ProbLog.
-        
-        Retorna un Índice Invertido O(1):
-        - dict mapeando cada valor (str) hacia un 'set' de group_ids de las AD que lo contienen.
+        Build an inverted index of AD-generated values in the ClauseDB.
+
+        The index maps each concrete value (as string) to the set of annotated
+        disjunction group ids that generated it.
+
+        :return: Inverted index: value -> set of AD group ids.
+        :rtype: dict of (str, set of int)
         """
-        from collections import defaultdict
         inverted_index = defaultdict(set)
         node_index = 0
         

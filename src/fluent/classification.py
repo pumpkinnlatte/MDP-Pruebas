@@ -16,7 +16,7 @@ class FluentClassifier(object):
         self._implicit_fluents = self._engine.declarations('state_fluent')
         self._ads_inverted_index = self._engine.get_ads_metadata()
 
-        print(self._ads_inverted_index)  # DEBUG: Ver el índice invertido de ADs
+        #print(self._ads_inverted_index)  # DEBUG: Ver el índice invertido de ADs
 
     def classify(self):
         """
@@ -24,16 +24,16 @@ class FluentClassifier(object):
         """
         schema = FluentSchema()
 
-        # 1. Validación estática
+        # Revision de reglas de declaración de fluentes
         self._validate_fluent_declarations(self._explicit_fluents, self._implicit_fluents)
 
-        # 2. Clasificación y Registro
+        # Inferencia y registro de fluentes explícitos e implícitos
         explicit_registry = self._register_explicit(self._explicit_fluents)
         implicit_registry = self._register_implicit(self._implicit_fluents, explicit_registry, self._ads_inverted_index)
 
         full_registry = {**implicit_registry, **explicit_registry}
 
-        # 3. Distribución y Construcción
+        #Distribución y Construcción
         mv_acc = self._dispatch_fluents(full_registry, schema)
         self._finalize_multivalued(schema, mv_acc)
 
@@ -142,7 +142,7 @@ class FluentClassifier(object):
             if not common_groups:
                 continue
 
-            # Intersectamos matemáticamente con los grupos de los elementos restantes
+            # Intersectamos con los grupos de los elementos restantes
             for val in iterator:
                 common_groups.intersection_update(ads_inverted_index.get(val, set()))
                 if not common_groups:
@@ -168,11 +168,8 @@ class FluentClassifier(object):
         """
         tag_str = str(tag_value)
 
-        if tag_str == 'bool':
-            return 'bool'
-
-        if tag_str == 'multivalued':
-            return 'multivalued'
+        if tag_str == 'bool' or tag_str == 'multivalued':
+            return tag_str
 
         raise FluentDeclarationError(
             f"Unknown type tag '{tag_value}' for fluent '{term}'. "
@@ -189,13 +186,13 @@ class FluentClassifier(object):
             except FluentDeclarationError as e:
                 errors.append(e)
 
-        # V6a: Check for duplicates
+        # V2: Check for duplicates
         explicit_functors = {str(t) for t in explicit_fluents.keys()}
         for term in implicit_fluents:
             term_str = str(term)
             if term_str in explicit_functors:
                 warnings.warn(
-                    f"[V6a] Fluent '{term_str}' is declared both implicitly (state_fluent/1) "
+                    f"[V2] Fluent '{term_str}' is declared both implicitly (state_fluent/1) "
                     f"and explicitly (state_fluent/2). The explicit declaration takes precedence.",
                     stacklevel=2
                 )

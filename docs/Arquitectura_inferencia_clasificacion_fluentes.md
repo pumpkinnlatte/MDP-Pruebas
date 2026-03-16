@@ -172,7 +172,7 @@ class FluentClassifier:
         ...
 ```
 
-El constructor recolecta los tres conjuntos de datos del `Engine` en una sola pasada. El método `classify()` ejecuta el pipeline completo (ver §4).
+El constructor recolecta los tres conjuntos de datos del `Engine` en una sola pasada. El método `classify()` ejecuta el pipeline completo.
 
 #### Métodos internos
 
@@ -181,18 +181,18 @@ El constructor recolecta los tres conjuntos de datos del `Engine` en una sola pa
 | `_register_explicit()` | Parsea fluentes `state_fluent/2` via `_parse_fluent_tag` |
 | `_register_implicit()` | Infiere tipo de fluentes `state_fluent/1` via `_infer_fluent_type` |
 | `_dispatch_fluents()` | Envía bool al schema, agrupa multivalued por functor |
-| `_finalize_enums()` | Valida cardinalidad y consolida grupos multivalued |
+| `_finalize_multivalued()` | Valida cardinalidad y consolida grupos multivalued |
 | `_parse_fluent_tag()` | Interpreta la etiqueta: `bool`, `multivalued` |
 | `_infer_fluent_type()` | Clasifica implícitos consultando el índice invertido de ADs |
-| `_validate_fluent_declarations()` | Ejecuta validaciones estáticas V1, V6a |
+| `_validate_fluent_declarations()` | Ejecuta validaciones estáticas V1, V2 |
 
 ### 3.4 `src/fluent/exceptions.py` — Jerarquía de Excepciones
 
 ```
 MDPProbLogError (base)
 ├── FluentDeclarationError   — V1: errores sintácticos en state_fluent/2
-├── FluentInferenceError     — Fallo genérico de inferencia (reservada)
-└── FluentCardinalityError   — V5: grupo multivalued con < 2 opciones
+├── FluentInferenceError     — V2: Fallo genérico de inferencia (reservada)
+└── FluentCardinalityError   — V3: grupo multivalued con < 2 opciones
 ```
 
 Las excepciones siguen el patrón de acumulación por fases: los errores se recogen en listas y se lanzan agrupados al final de cada fase, para que el usuario corrija su modelo en una sola iteración.
@@ -206,11 +206,10 @@ El método `classify()` de `FluentClassifier` ejecuta un pipeline lineal de tres
 ### Fase 1 — Validación Estática
 
 ```python
-ads_vocab_keys = set(self._ads_inverted_index.keys())
-self._validate_fluent_declarations(self._explicit_fluents, self._implicit_fluents, ads_vocab_keys)
+self._validate_fluent_declarations(self._explicit_fluents, self._implicit_fluents)
 ```
 
-Ejecuta las reglas de validación estática (V1, V6a). Si hay errores, el pipeline se detiene con un `FluentDeclarationError` agrupado. Ver §6.
+Ejecuta las reglas de validación estática (V1, V2). Si hay errores, el pipeline se detiene con un `FluentDeclarationError` agrupado.
 
 ### Fase 2 — Clasificación y Registro
 
@@ -223,15 +222,15 @@ full_registry = {**implicit_registry, **explicit_registry}
 Dos sub-pasos secuenciales:
 
 1. **Registro explícito**: Cada fluente de `state_fluent/2` se parsea con `_parse_fluent_tag` y se almacena como `(term, fluent_type)`.
-2. **Registro implícito**: Los fluentes de `state_fluent/1` se agrupan por `(functor, aridad)` y se infieren con `_infer_fluent_type`. Fluentes que ya existen en el registro explícito se omiten (resolución de V6a en la práctica).
+2. **Registro implícito**: Los fluentes de `state_fluent/1` se agrupan por `(functor, aridad)` y se infieren con `_infer_fluent_type`. Fluentes que ya existen en el registro explícito se omiten (resolución de V2 en la práctica).
 
 El registro completo se construye dando prioridad al explícito: `{**implicit, **explicit}`.
 
 ### Fase 3 — Distribución y Construcción
 
 ```python
-enum_acc, enum_idx = self._dispatch_fluents(full_registry, schema)
-self._finalize_enums(schema, enum_acc, enum_idx)
+mv_acc = self._dispatch_fluents(full_registry, schema)
+self._finalize_multivalued(schema, mv_acc)
 ```
 
 1. **Distribución**: Los fluentes bool se registran directamente en el schema via `add_bool`. Los multivalued se acumulan agrupados por functor. El registro se recorre en orden alfabético para garantizar determinismo.
@@ -264,7 +263,6 @@ El registro se construye en la Fase 2 (explícito + implícito) y se consume en 
 |---|---|---|
 | `explicit_fluents` | `dict {Term: Term}` | `engine.assignments('state_fluent')` |
 | `implicit_fluents` | `list [Term]` | `engine.declarations('state_fluent')` |
-| `ads_vocab` | `set` | Claves del índice invertido de ADs |
 
 ### Reglas implementadas
 
@@ -274,13 +272,13 @@ Itera sobre cada fluente explícito y ejecuta `_parse_fluent_tag`. Cualquier `Fl
 
 - **V1**: Etiqueta desconocida (no es `bool` ni `multivalued`).
 
-#### V6a — Duplicado entre modos
+#### V2 — Duplicado entre modos
 
 ```python
 explicit_functors = {str(t) for t in explicit_fluents.keys()}
 for term in implicit_fluents:
     if str(term) in explicit_functors:
-        warnings.warn(f"[V6a] Fluent '{term_str}' is declared both implicitly ...")
+        warnings.warn(f"[V2] Fluent '{term_str}' is declared both implicitly ...")
 ```
 
 Si un término aparece tanto en `state_fluent/1` como en `state_fluent/2`, emite un warning. La declaración explícita siempre tiene prioridad.
@@ -378,8 +376,8 @@ Fase 1: _validate_fluent_declarations
   ├── Acumula → FluentDeclarationError (V1)
   └── Lanza agrupado → FluentDeclarationError
 
-Fase 2: _finalize_enums
-  ├── Acumula → FluentCardinalityError (V5)
+Fase 3: _finalize_multivalued
+  ├── Acumula → FluentCardinalityError (V3)
   └── Lanza agrupado → FluentCardinalityError
 ```
 

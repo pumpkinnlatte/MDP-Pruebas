@@ -21,18 +21,18 @@ El Mitchell Grid es un MDP determinístico de navegación en un grid rectangular
 
 ### 2.1 Instancias
 
-Se generaron 8 instancias de tamaño creciente. La columna Sindica el número total de estados y $|\mathcal{A}| = 5$ acciones (arriba, abajo, izquierda, derecha, quieto) en todas las instancias.
+Se generaron 8 instancias de tamaño creciente. La columna $|\mathcal{S}|$ indica el número total de estados y $|\mathcal{A}| = 5$ acciones (arriba, abajo, izquierda, derecha, quieto) en todas las instancias.
 
-| Instancia | Dimensiones | S| A |
+| Instancia | Dimensiones | $|\mathcal{S}|$ | $|\mathcal{A}|$ |
 |-----------|-------------|------------------|------------------|
-| grid00    | 1x2   | 2   | 5 |
-| grid01    | 2x2   | 4   | 5 |
-| grid02    | 2x4  | 8   | 5 |
-| grid03    | 4x4  | 16  | 5 |
-| grid04    | 4x8   | 32  | 5 |
-| grid05    | 8x8  | 64  | 5 |
-| grid06    | 8x16  | 128 | 5 |
-| grid07    | 16x16 | 256 | 5 |
+| grid00    | $1 \times 2$   | 2   | 5 |
+| grid01    | $2 \times 2$   | 4   | 5 |
+| grid02    | $2 \times 4$   | 8   | 5 |
+| grid03    | $4 \times 4$   | 16  | 5 |
+| grid04    | $4 \times 8$   | 32  | 5 |
+| grid05    | $8 \times 8$   | 64  | 5 |
+| grid06    | $8 \times 16$  | 128 | 5 |
+| grid07    | $16 \times 16$ | 256 | 5 |
 
 ### 2.2 Arquitecturas de Modelado
 
@@ -41,7 +41,7 @@ Cada instancia se codificó con tres arquitecturas que representan la misma sem�
 | Arquitectura | Fluentes de estado | Codificación |
 |---|---|---|
 | `boolean` | $\lceil\log_2 |\mathcal{S}|\rceil$ variables binarias independientes | Producto cartesiano $2^N$; cada bit indica una propiedad posicional |
-| `multivalued` | 1 fluente categórico `coor(X,Y)` de base S| One-hot sobre $K$ posiciones; un único factor de base $K$ |
+| `multivalued` | 1 fluente categórico `coor(X,Y)` de base $|\mathcal{S}|$ | One-hot sobre $K$ posiciones; un único factor de base $K$ |
 | `multi_factor` | 2 fluentes categóricos `x(X)` $\times$ `y(Y)` | Mixed-radix; dos factores independientes (filas $\times$ columnas) |
 
 Las tres arquitecturas producen **el mismo MDP** (mismos estados, transiciones, recompensas y política óptima). La diferencia es exclusivamente la representación interna en el programa ProbLog.
@@ -54,34 +54,34 @@ Las métricas se organizan de las primitivas (medidas directas) a las compuestas
 
 ### 3.1 Métricas Primitivas
 
-| Símbolo                         | Unidad   | Descripción                                                                                                                                                                                             |
-| ------------------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| $\mathcal{S}$                   | —        | Número total de estados del MDP, determinado por el producto de las bases de todos los factores: $\mathcal{S}= \prod_{k} b_k$.                                                                          |
-| $\mathcal{A}$                   | —        | Número de acciones disponibles. Fijo en 5 para todas las instancias.                                                                                                                                    |
-| `gp_atoms`                      | —        | Número de átomos proposicionales en el programa aterrizado (*ground program*). Cada átomo es una variable booleana que participa en el circuito lógico.                                                 |
-| `circuit_nodes`                 | —        | Número de nodos en el circuito compilado (d-DNNF o SDD). Determina el costo de cada evaluación WMC.                                                                                                     |
-| `circuit_edges`                 | —        | Número de aristas en el circuito compilado.                                                                                                                                                             |
-| $t_{\text{ground}}$             | segundos | Tiempo de *grounding*: transformar el programa Prolog con variables en un programa proposicional instanciado.                                                                                           |
-| $t_{\text{compile}}$            | segundos | Tiempo de compilación: transformar el programa proposicional aterrizado en un circuito booleano tratable (d-DNNF o SDD).                                                                                |
-| $t_{\text{prepare}}$            | segundos | Tiempo total de preparación del MDP: incluye clasificación de fluentes, inyección de hechos dummy, grounding y compilación. Se cumple $t_{\text{prepare}} \geq t_{\text{ground}} + t_{\text{compile}}$. |
-| $t_{\text{vi}}$                 | segundos | Tiempo total de ejecución de Value Iteration, desde la primera iteración de Bellman hasta la convergencia.                                                                                              |
-| $K_{\text{iter}}$               | —        | Número de iteraciones de Bellman ejecutadas hasta satisfacer el criterio de convergencia $\|V^{(i+1)} - V^{(i)}\|_\infty \leq 2\varepsilon(1-\gamma)/\gamma$.                                           |
-| $n_{\text{wmc}}^{\text{trans}}$ | —        | Número de evaluaciones WMC realizadas para calcular probabilidades de transición. Teóricamente $=\mathcal{S}\times\mathcal{A}$ (una por par estado-acción, cacheadas tras la primera invocación).       |
-| $n_{\text{wmc}}^{\text{rew}}$   | —        | Número de evaluaciones WMC realizadas para calcular recompensas. Mismo valor teórico que $n_{\text{wmc}}^{\text{trans}}$.                                                                               |
-| $t_{\text{wmc}}^{\text{trans}}$ | segundos | Tiempo acumulado de todas las evaluaciones WMC de transición.                                                                                                                                           |
-| $t_{\text{wmc}}^{\text{rew}}$   | segundos | Tiempo acumulado de todas las evaluaciones WMC de recompensa.                                                                                                                                           |
+| Símbolo | Unidad | Descripción |
+|---------|--------|-------------|
+| $|\mathcal{S}|$ | — | Número total de estados del MDP, determinado por el producto de las bases de todos los factores: $|\mathcal{S}| = \prod_{k} b_k$. |
+| $|\mathcal{A}|$ | — | Número de acciones disponibles. Fijo en 5 para todas las instancias. |
+| `gp_atoms` | — | Número de átomos proposicionales en el programa aterrizado (*ground program*). Cada átomo es una variable booleana que participa en el circuito lógico. |
+| `circuit_nodes` | — | Número de nodos en el circuito compilado (d-DNNF o SDD). Determina el costo de cada evaluación WMC. |
+| `circuit_edges` | — | Número de aristas en el circuito compilado. |
+| $t_{\text{ground}}$ | s | Tiempo de *grounding*: transformar el programa Prolog con variables en un programa proposicional instanciado. |
+| $t_{\text{compile}}$ | s | Tiempo de compilación: transformar el programa proposicional aterrizado en un circuito booleano tratable (d-DNNF o SDD). |
+| $t_{\text{prepare}}$ | s | Tiempo total de preparación del MDP: incluye clasificación de fluentes, inyección de hechos dummy, grounding y compilación. Se cumple $t_{\text{prepare}} \geq t_{\text{ground}} + t_{\text{compile}}$. |
+| $t_{\text{vi}}$ | s | Tiempo total de ejecución de Value Iteration, desde la primera iteración de Bellman hasta la convergencia. |
+| $K_{\text{iter}}$ | — | Número de iteraciones de Bellman ejecutadas hasta satisfacer el criterio de convergencia $\|V^{(i+1)} - V^{(i)}\|_\infty \leq 2\varepsilon(1-\gamma)/\gamma$. |
+| $n_{\text{wmc}}^{\text{trans}}$ | — | Número de evaluaciones WMC realizadas para calcular probabilidades de transición. Teóricamente $= |\mathcal{S}| \times |\mathcal{A}|$ (una por par estado-acción, cacheadas tras la primera invocación). |
+| $n_{\text{wmc}}^{\text{rew}}$ | — | Número de evaluaciones WMC realizadas para calcular recompensas. Mismo valor teórico que $n_{\text{wmc}}^{\text{trans}}$. |
+| $t_{\text{wmc}}^{\text{trans}}$ | s | Tiempo acumulado de todas las evaluaciones WMC de transición. |
+| $t_{\text{wmc}}^{\text{rew}}$ | s | Tiempo acumulado de todas las evaluaciones WMC de recompensa. |
 
 ### 3.2 Métricas Compuestas
 
-| Símbolo                  | Definición                                                                      | Descripción                                                                                                                                              |
-| ------------------------ | ------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| $t_{\text{iter}}$        | $t_{\text{vi}} / K_{\text{iter}}$                                               | Tiempo promedio por iteración de Bellman.                                                                                                                |
-| $\bar{t}_{\text{trans}}$ | $t_{\text{wmc}}^{\text{trans}} / n_{\text{wmc}}^{\text{trans}}$                 | Costo promedio de una evaluación WMC de transición.                                                                                                      |
-| $\bar{t}_{\text{rew}}$   | $t_{\text{wmc}}^{\text{rew}} / n_{\text{wmc}}^{\text{rew}}$                     | Costo promedio de una evaluación WMC de recompensa.                                                                                                      |
-| $t_{\text{bellman}}$     | $t_{\text{vi}} - t_{\text{wmc}}^{\text{trans}} - t_{\text{wmc}}^{\text{rew}}$   | Tiempo dedicado exclusivamente a la aritmética de Bellman (recursión `__expected_value`, maximización, actualización de $V$).                            |
-| $f_{\text{wmc}}$         | $(t_{\text{wmc}}^{\text{trans}} + t_{\text{wmc}}^{\text{rew}}) / t_{\text{vi}}$ | Fracción del tiempo de VI consumida por evaluaciones WMC.                                                                                                |
-| $f_{\text{vi}}$          | $t_{\text{vi}} / (t_{\text{prepare}} + t_{\text{vi}})$                          | Fracción del tiempo total del pipeline consumida por Value Iteration.                                                                                    |
-| $\alpha$                 | $\Delta\log(\text{métrica}) / \Delta\log(\mathcal{S})$                          | Exponente de escalamiento empírico entre grids consecutivos. $\alpha \approx 1$: lineal; $\alpha \approx 2$: cuadrático; $\alpha > 2$: super-polinomial. |
+| Símbolo | Definición | Descripción |
+|---------|------------|-------------|
+| $t_{\text{iter}}$ | $t_{\text{vi}} / K_{\text{iter}}$ | Tiempo promedio por iteración de Bellman. |
+| $\bar{t}_{\text{trans}}$ | $t_{\text{wmc}}^{\text{trans}} / n_{\text{wmc}}^{\text{trans}}$ | Costo promedio de una evaluación WMC de transición. |
+| $\bar{t}_{\text{rew}}$ | $t_{\text{wmc}}^{\text{rew}} / n_{\text{wmc}}^{\text{rew}}$ | Costo promedio de una evaluación WMC de recompensa. |
+| $t_{\text{bellman}}$ | $t_{\text{vi}} - t_{\text{wmc}}^{\text{trans}} - t_{\text{wmc}}^{\text{rew}}$ | Tiempo dedicado exclusivamente a la aritmética de Bellman (recursión `__expected_value`, maximización, actualización de $V$). |
+| $f_{\text{wmc}}$ | $(t_{\text{wmc}}^{\text{trans}} + t_{\text{wmc}}^{\text{rew}}) / t_{\text{vi}}$ | Fracción del tiempo de VI consumida por evaluaciones WMC. |
+| $f_{\text{vi}}$ | $t_{\text{vi}} / (t_{\text{prepare}} + t_{\text{vi}})$ | Fracción del tiempo total del pipeline consumida por Value Iteration. |
+| $\alpha$ | $\Delta\log(\text{métrica}) / \Delta\log(|\mathcal{S}|)$ | Exponente de escalamiento empírico entre grids consecutivos. $\alpha \approx 1$: lineal; $\alpha \approx 2$: cuadrático; $\alpha > 2$: super-polinomial. |
 
 ### 3.3 Configuración Experimental
 
@@ -93,7 +93,7 @@ Cada combinación (arquitectura, instancia, backend) se ejecutó 3 veces. Se rep
 
 ### 4.1 Resultados Principales (backend `ddnnf`, medianas)
 
-| Arquitectura | Instancia | S| `gp_atoms` | `circuit_nodes` | $t_{\text{ground}}$ | $t_{\text{compile}}$ | $t_{\text{prepare}}$ |
+| Arquitectura | Instancia | $|\mathcal{S}|$ | `gp_atoms` | `circuit_nodes` | $t_{\text{ground}}$ | $t_{\text{compile}}$ | $t_{\text{prepare}}$ |
 |---|---|---|---|---|---|---|---|
 | `boolean` | grid00 | 2 | 13 | 27 | 4.1 ms | 4.5 ms | 15.5 ms |
 | `boolean` | grid01 | 4 | 28 | 79 | 7.2 ms | 7.2 ms | 23.7 ms |
@@ -122,21 +122,45 @@ Cada combinación (arquitectura, instancia, backend) se ejecutó 3 veces. Se rep
 
 ### 4.2 Exponentes de Escalamiento
 
-El exponente $\alpha = \Delta\log(\text{métrica})/\Delta\log(|\mathcal{S}|)$ cuantifica cómo crece cada métrica al duplicar el espacio de estados. Se reporta el rango observado y el valor asintótico (último par de grids disponibles).
+Para caracterizar la velocidad de crecimiento de cada métrica, calculamos el exponente de escalamiento empírico $\alpha$ entre cada par de grids consecutivos:
 
-| Arquitectura | $\alpha_{\text{nodes}}$ (rango) | $\alpha_{\text{nodes}}$ (asint.) | $\alpha_{t_c}$ (rango) | $\alpha_{t_c}$ (asint.) | $\alpha_{\text{gp}}$ (asint.) |
-|---|---|---|---|---|---|
-| `boolean` | 1.19 – 1.55 | 1.19 | 0.67 – 4.06 | 4.06 | 1.24 |
-| `multivalued` | 0.82 – 1.00 | 1.00 | 0.65 – 1.98 | 1.98 | 0.99 |
-| `multi_factor` | 0.88 – 1.25 | 0.94 | 1.21 – 3.75 | 3.75 | 0.97 |
+$$\alpha = \frac{\log(\text{métrica}_{i+1}) - \log(\text{métrica}_i)}{\log(|\mathcal{S}|_{i+1}) - \log(|\mathcal{S}|_i)}$$
 
-**Lectura:** `multivalued` presenta $\alpha_{\text{nodes}} \to 1.0$ (crecimiento lineal del circuito) y $\alpha_{t_c} \leq 2$ (compilación polinomial cuadrática). `boolean` y `multi_factor` presentan $\alpha_{t_c}$ creciente, señal de escalamiento super-polinomial consistente con la cota teórica $O(|\phi| \cdot 2^{tw(\phi)})$.
+Un valor $\alpha \approx 1$ indica crecimiento lineal, $\alpha \approx 2$ cuadrático, y $\alpha > 2$ super-polinomial. La tabla siguiente reporta el rango de $\alpha$ observado a lo largo de todas las transiciones entre grids consecutivos, junto con la tendencia (si $\alpha$ es estable, creciente o decreciente a medida que $|\mathcal{S}|$ aumenta).
+
+**Exponentes para `circuit_nodes`** (tamaño del circuito compilado):
+
+| Arquitectura | Rango de $\alpha$ | Tendencia | Interpretación |
+|---|---|---|---|
+| `boolean` | 1.19 – 1.55 | Decreciente | Superlineal; converge lentamente hacia lineal |
+| `multivalued` | 0.82 – 1.00 | Estable en 1.0 | Lineal |
+| `multi_factor` | 0.88 – 1.25 | Estable cerca de 1.0 | Aproximadamente lineal |
+
+**Exponentes para `t_compile`** (tiempo de compilación):
+
+| Arquitectura | Rango de $\alpha$ | Tendencia | Interpretación |
+|---|---|---|---|
+| `boolean` | 0.67 – 4.06 | Creciente | Super-polinomial; se acelera con $|\mathcal{S}|$ |
+| `multivalued` | 0.65 – 1.98 | Estable bajo 2.0 | Polinomial (cuadrático o inferior) |
+| `multi_factor` | 1.21 – 3.75 | Creciente | Super-polinomial; se acelera con $|\mathcal{S}|$ |
+
+**Exponentes para `gp_atoms`** (átomos del programa aterrizado):
+
+| Arquitectura | Rango de $\alpha$ | Tendencia | Interpretación |
+|---|---|---|---|
+| `boolean` | 1.11 – 1.30 | Decreciente hacia 1.0 | Ligeramente superlineal |
+| `multivalued` | 0.74 – 0.99 | Convergente a 1.0 | Lineal |
+| `multi_factor` | 0.92 – 1.25 | Convergente a 1.0 | Lineal |
+
+El contraste más revelador es en el tiempo de compilación. Para entenderlo, recordemos que el pipeline de inferencia de ProbLog transforma el programa proposicional en un circuito booleano (d-DNNF o SDD). El costo de esta transformación está acotado por $O(|\phi| \cdot 2^{tw(\phi)})$, donde $|\phi|$ es el tamaño de la fórmula proposicional y $tw(\phi)$ es su *treewidth* — una medida de cuán "entrelazadas" están las dependencias entre variables proposicionales (Darwiche, 2001). Este resultado clásico de knowledge compilation implica que **el tiempo de compilación crece exponencialmente con el treewidth**, independientemente del tamaño de la fórmula.
+
+En la codificación `boolean`, cada regla de transición del grid verifica simultáneamente los $\lceil\log_2 |\mathcal{S}|\rceil$ bits que codifican la posición, generando cláusulas que acoplan todas las variables. Esto produce un treewidth que crece con $\log_2 |\mathcal{S}|$, y por tanto un tiempo de compilación que crece como $O(|\mathcal{S}|^c)$ con $c$ creciente — exactamente lo que se observa ($\alpha$ creciente). En cambio, en la codificación `multivalued`, cada regla involucra solo dos literales (posición de origen y destino), manteniendo el treewidth acotado y el tiempo de compilación polinomial.
 
 ### 4.3 Ventaja Relativa de `multivalued`
 
-Cocientes de `circuit_nodes` (cn) y $t_{\text{compile}}$ ($t_c$) respecto a `multivalued` para el mismo $|\mathcal{S}|$. Valores $> 1$ indican que la alternativa es más costosa.
+Para cuantificar directamente la ventaja de `multivalued` sobre las otras arquitecturas, calculamos dos cocientes para cada tamaño de espacio de estados: la razón de nodos del circuito y la razón de tiempos de compilación. Un valor mayor que 1 indica que la alternativa es más costosa que `multivalued`.
 
-| S| $\text{cn}_{\text{bool}} / \text{cn}_{\text{mv}}$ | $\text{cn}_{\text{mf}} / \text{cn}_{\text{mv}}$ | $t_{c,\text{bool}} / t_{c,\text{mv}}$ | $t_{c,\text{mf}} / t_{c,\text{mv}}$ |
+| Estados | Nodos: bool / mv | Nodos: mf / mv | Tiempo: bool / mv | Tiempo: mf / mv |
 |---|---|---|---|---|
 | 2 | 0.52 | 1.00 | 0.88 | 0.95 |
 | 4 | 0.86 | 1.35 | 0.89 | 2.60 |
@@ -147,16 +171,20 @@ Cocientes de `circuit_nodes` (cn) y $t_{\text{compile}}$ ($t_c$) respecto a `mul
 | 128 | — | — | — | — |
 | 256 | — | — | — | — |
 
-**Hallazgo:** La ventaja de `multivalued` crece monótonamente con $|\mathcal{S}|$. En $|\mathcal{S}| = 64$, `multivalued` es $\sim$2$\times$ más compacto en nodos y $\sim$109$\times$ más rápido en compilación que `boolean`. A partir de $|\mathcal{S}| = 128$, `multivalued` es la única arquitectura que no agota la memoria.
+Donde `bool` = `boolean`, `mv` = `multivalued`, `mf` = `multi_factor`.
+
+Tres observaciones emergen de esta tabla. Primero, para instancias muy pequeñas ($|\mathcal{S}| \leq 4$), `boolean` es ligeramente más compacto que `multivalued` — esto se debe a que con pocos bits, la codificación binaria genera menos variables proposicionales que la codificación one-hot. Segundo, a partir de $|\mathcal{S}| = 8$ la ventaja se invierte y crece monótonamente: en $|\mathcal{S}| = 64$, `multivalued` produce circuitos 2× más compactos y se compila 109× más rápido que `boolean`. Tercero, y más críticamente, a partir de $|\mathcal{S}| = 128$ las codificaciones `boolean` y `multi_factor` agotan la memoria durante la compilación (OOM en las 6 de 6 ejecuciones), mientras que `multivalued` completa la compilación sin incidencias hasta $|\mathcal{S}| = 256$.
 
 ### 4.4 Equivalencia de Backends (d-DNNF vs SDD)
 
-| Cociente | Rango observado |
-|----------|----------------|
-| $\text{cn}_{\text{sdd}} / \text{cn}_{\text{ddnnf}}$ | 1.000 (exacto en todas las instancias) |
-| $t_{c,\text{sdd}} / t_{c,\text{ddnnf}}$ | 0.95 – 1.05 |
+ProbLog soporta dos backends de compilación: d-DNNF (*Deterministic Decomposable Negation Normal Form*) y SDD (*Sentential Decision Diagrams*). Comparamos ambos calculando el cociente de nodos del circuito y de tiempo de compilación entre SDD y d-DNNF para cada instancia.
 
-Ambos backends producen circuitos de tamaño idéntico y tiempos de compilación indistinguibles para el dominio Mitchell Grid. La coincidencia es consistente con la estructura de árbol de las fórmulas generadas por las Disyunciones Anotadas.
+| Cociente | Rango observado | Interpretación |
+|----------|----------------|----------------|
+| Nodos SDD / Nodos d-DNNF | 1.000 en todas las instancias | Circuitos idénticos |
+| Tiempo SDD / Tiempo d-DNNF | 0.95 – 1.05 | Tiempos indistinguibles |
+
+Para el dominio Mitchell Grid, ambos backends producen circuitos de tamaño exactamente idéntico con tiempos de compilación que difieren en menos del 5%. Esta coincidencia es consistente con la estructura de las fórmulas generadas por las Disyunciones Anotadas de ProbLog: cuando el grafo de dependencias tiene forma de árbol (sin compartición de subcircuitos), los d-DNNF y los SDD convergen al mismo circuito. La diferencia entre backends se manifestaría en dominios con mayor grado de compartición estructural.
 
 ---
 
@@ -166,7 +194,7 @@ Se ejecutó Value Iteration con la arquitectura ganadora (`multivalued`, backend
 
 ### 5.1 Resultados Principales (caso base $\gamma = 0.90$, $\varepsilon = 0.1$, medianas)
 
-| Instancia | S| $K_{\text{iter}}$ | $t_{\text{vi}}$ | $t_{\text{iter}}$ | $n_{\text{wmc}}^{\text{trans}}$ | $\bar{t}_{\text{trans}}$ | $t_{\text{wmc}}^{\text{rew}}$ | $t_{\text{bellman}}$ | $f_{\text{wmc}}$ |
+| Instancia | $|\mathcal{S}|$ | $K_{\text{iter}}$ | $t_{\text{vi}}$ | $t_{\text{iter}}$ | $n_{\text{wmc}}^{\text{trans}}$ | $\bar{t}_{\text{trans}}$ | $t_{\text{wmc}}^{\text{rew}}$ | $t_{\text{bellman}}$ | $f_{\text{wmc}}$ |
 |---|---|---|---|---|---|---|---|---|---|
 | grid00 | 2 | 2 | 2.6 ms | 1.3 ms | 10 | 0.134 ms | 0.728 ms | 0.528 ms | 79.6% |
 | grid01 | 4 | 2 | 8.0 ms | 4.0 ms | 20 | 0.254 ms | 2.0 ms | 0.901 ms | 88.7% |
@@ -179,7 +207,7 @@ Se ejecutó Value Iteration con la arquitectura ganadora (`multivalued`, backend
 
 ### 5.2 Escalamiento de Value Iteration
 
-| Instancia | S| $t_{\text{vi}}$ | $\alpha_{t_{\text{vi}}}$ | $K_{\text{iter}}$ | $\alpha_{K}$ | $t_{\text{iter}}$ | $\alpha_{t_{\text{iter}}}$ |
+| Instancia | $|\mathcal{S}|$ | $t_{\text{vi}}$ | $\alpha_{t_{\text{vi}}}$ | $K_{\text{iter}}$ | $\alpha_{K}$ | $t_{\text{iter}}$ | $\alpha_{t_{\text{iter}}}$ |
 |---|---|---|---|---|---|---|---|
 | grid00 | 2 | 2.6 ms | — | 2 | — | 1.3 ms | — |
 | grid01 | 4 | 8.0 ms | 1.62 | 2 | 0.00 | 4.0 ms | 1.62 |
@@ -194,7 +222,7 @@ Se ejecutó Value Iteration con la arquitectura ganadora (`multivalued`, backend
 
 ### 5.3 Invarianza Respecto a $\gamma$ y $\varepsilon$
 
-| Instancia | S| $t_{\text{vi}}(\gamma\!=\!0.90, \varepsilon\!=\!0.1)$ | $t_{\text{vi}}(\gamma\!=\!0.99, \varepsilon\!=\!0.1)$ | ratio $\gamma$ | $t_{\text{vi}}(\gamma\!=\!0.90, \varepsilon\!=\!10^{-4})$ | ratio $\varepsilon$ |
+| Instancia | $|\mathcal{S}|$ | $t_{\text{vi}}(\gamma\!=\!0.90, \varepsilon\!=\!0.1)$ | $t_{\text{vi}}(\gamma\!=\!0.99, \varepsilon\!=\!0.1)$ | ratio $\gamma$ | $t_{\text{vi}}(\gamma\!=\!0.90, \varepsilon\!=\!10^{-4})$ | ratio $\varepsilon$ |
 |---|---|---|---|---|---|---|
 | grid00 | 2 | 2.6 ms | 2.6 ms | 0.99 | 2.6 ms | 0.99 |
 | grid01 | 4 | 8.0 ms | 8.1 ms | 1.01 | 8.4 ms | 1.05 |
@@ -215,7 +243,7 @@ Se ejecutó Value Iteration con la arquitectura ganadora (`multivalued`, backend
 
 La siguiente tabla combina los resultados de Fase A ($t_{\text{prepare}}$) y Fase B ($t_{\text{vi}}$) para la arquitectura `multivalued` con $\gamma = 0.90$, $\varepsilon = 0.1$.
 
-| Instancia | S| $t_{\text{prepare}}$ | $t_{\text{vi}}$ | $t_{\text{total}}$ | $f_{\text{vi}}$ |
+| Instancia | $|\mathcal{S}|$ | $t_{\text{prepare}}$ | $t_{\text{vi}}$ | $t_{\text{total}}$ | $f_{\text{vi}}$ |
 |---|---|---|---|---|---|
 | grid00 | 2 | 27.2 ms | 2.6 ms | 29.8 ms | 8.7% |
 | grid01 | 4 | 42.6 ms | 8.0 ms | 50.6 ms | 15.7% |
@@ -232,7 +260,7 @@ La siguiente tabla combina los resultados de Fase A ($t_{\text{prepare}}$) y Fas
 
 Dentro del tiempo de VI, distinguimos el costo de evaluar el circuito compilado (WMC, ejecutado una sola vez por par estado-acción gracias al caché) del costo de la aritmética de Bellman (recursión `__expected_value`, maximización, actualizaciones de $V$, ejecutado en cada iteración).
 
-| Instancia | S| $t_{\text{wmc}}^{\text{trans}} + t_{\text{wmc}}^{\text{rew}}$ | $t_{\text{bellman}}$ | $f_{\text{wmc}}$ |
+| Instancia | $|\mathcal{S}|$ | $t_{\text{wmc}}^{\text{trans}} + t_{\text{wmc}}^{\text{rew}}$ | $t_{\text{bellman}}$ | $f_{\text{wmc}}$ |
 |---|---|---|---|---|
 | grid00 | 2 | 2.1 ms | 0.5 ms | 79.6% |
 | grid01 | 4 | 7.1 ms | 0.9 ms | 88.7% |
@@ -249,7 +277,7 @@ Dentro del tiempo de VI, distinguimos el costo de evaluar el circuito compilado 
 
 El costo de una evaluación WMC individual crece con el tamaño del circuito:
 
-| Instancia | S| `circuit_nodes` | $\bar{t}_{\text{trans}}$ | $\bar{t}_{\text{rew}}$ |
+| Instancia | $|\mathcal{S}|$ | `circuit_nodes` | $\bar{t}_{\text{trans}}$ | $\bar{t}_{\text{rew}}$ |
 |---|---|---|---|---|
 | grid00 | 2 | 52 | 0.134 ms | 0.073 ms |
 | grid01 | 4 | 92 | 0.254 ms | 0.099 ms |
@@ -268,9 +296,9 @@ El costo de una evaluación WMC individual crece con el tamaño del circuito:
 
 ### 7.1 Proposición 7.1 — Crecimiento Lineal de `gp_atoms`
 
-La Proposición 7.1 del documento de validación matemática predice que el número de átomos proposicionales crece linealmente con S($\alpha_{\text{gp}} \approx 1$).
+La Proposición 7.1 del documento de validación matemática predice que el número de átomos proposicionales crece linealmente con $|\mathcal{S}|$ (exponente $\alpha \approx 1$).
 
-| Arquitectura | $\alpha_{\text{gp}}$ observado | Predicción |
+| Arquitectura | Exponente observado | Predicción teórica |
 |---|---|---|
 | `boolean` | 1.24 | $\approx 1.0$ |
 | `multivalued` | 0.99 | $\approx 1.0$ |
@@ -278,13 +306,15 @@ La Proposición 7.1 del documento de validación matemática predice que el núm
 
 Las tres arquitecturas confirman la predicción. La ligera sobrelinealidad de `boolean` ($\alpha = 1.24$) se atribuye a las interacciones cruzadas entre bits en las reglas de transición del grid.
 
-### 7.2 Sección 7.2 — Treewidth y Costo de Compilación
+### 7.2 Treewidth y Costo de Compilación
 
-La cota $O(|\phi| \cdot 2^{tw(\phi)})$ predice que el tiempo de compilación depende exponencialmente del treewidth del programa proposicional. Los datos confirman esta predicción:
+La cota teórica $O(|\phi| \cdot 2^{tw(\phi)})$ (Darwiche, 2001), discutida en la Sección 4.2, predice que el tiempo de compilación depende exponencialmente del treewidth del programa proposicional. Los datos confirman esta predicción de forma diferenciada por arquitectura.
 
-- `multivalued` ($\alpha_{t_c} \leq 2$): la codificación one-hot global genera cláusulas de anchura 2 (un literal de origen, un literal de destino), produciendo treewidth bajo.
-- `boolean` ($\alpha_{t_c} \to 4$): cada regla de transición verifica $\lceil\log_2 |\mathcal{S}|\rceil$ bits simultáneamente, produciendo cláusulas de anchura proporcional a $\log_2 |\mathcal{S}|$ y treewidth creciente.
-- `multi_factor` ($\alpha_{t_c} \to 3.75$): las restricciones de exclusión mutua entre factores separados elevan el treewidth, aunque menos que `boolean`.
+Para `multivalued`, el exponente de escalamiento del tiempo de compilación se mantiene bajo 2.0, lo que indica que el treewidth de las fórmulas generadas no crece significativamente con $|\mathcal{S}|$. Esto se debe a que la codificación one-hot global genera cláusulas de anchura 2 (un literal de origen y un literal de destino por cada transición), manteniendo las dependencias locales.
+
+Para `boolean`, el exponente crece hacia 4.0, reflejando un treewidth que aumenta con $\log_2 |\mathcal{S}|$ (el número de bits necesarios para codificar la posición). Cada regla de transición verifica simultáneamente todos los bits, generando cláusulas de anchura proporcional a $\log_2 |\mathcal{S}|$.
+
+Para `multi_factor`, el exponente crece hacia 3.75. Las restricciones de exclusión mutua entre los dos factores independientes (filas y columnas) elevan el treewidth, aunque menos que la codificación booleana pura.
 
 ### 7.3 Proposición 3.1 — Complejidad del Valor Esperado
 
@@ -299,13 +329,13 @@ El exponente observado $\alpha_{t_{\text{iter}}} \in [0.83, 2.67]$ es consistent
 
 $K_{\text{iter}}$ refleja el diámetro efectivo del MDP: el número mínimo de pasos para que la información de recompensa se propague al estado más lejano. Para un grid de $r \times c$ celdas, el diámetro Manhattan es $O(r + c) = O(\sqrt{|\mathcal{S}|})$, lo que predice $\alpha_K \approx 0.5$.
 
-| Instancia | S   | $K_{\text{iter}}$ | $\sqrt{\mathcal{S}}$ |
-| --------- | --- | ----------------- | -------------------- |
-| grid00    | 2   | 2                 | 1.4                  |
-| grid02    | 8   | 4                 | 2.8                  |
-| grid04    | 32  | 8                 | 5.7                  |
-| grid06    | 128 | 15                | 11.3                 |
-| grid07    | 256 | 16                | 16.0                 |
+| Instancia | $|\mathcal{S}|$ | $K_{\text{iter}}$ | $\sqrt{|\mathcal{S}|}$ |
+|---|---|---|---|
+| grid00 | 2 | 2 | 1.4 |
+| grid02 | 8 | 4 | 2.8 |
+| grid04 | 32 | 8 | 5.7 |
+| grid06 | 128 | 15 | 11.3 |
+| grid07 | 256 | 16 | 16.0 |
 
 La relación $K_{\text{iter}} \approx \sqrt{|\mathcal{S}|}$ se cumple consistentemente, confirmando la predicción teórica.
 
