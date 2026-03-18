@@ -14,9 +14,8 @@
 # along with MDP-ProbLog.  If not, see <http://www.gnu.org/licenses/>.
 
 import random
-
+from collections import OrderedDict
 from mdpproblog.fluent import StateSpace, ActionSpace
-
 
 class Simulator(object):
     """
@@ -34,8 +33,11 @@ class Simulator(object):
         self._mdp = mdp
         self._policy = policy
 
-        self.__current_state_fluents = mdp.current_state_fluents()
-        self.__actions = ActionSpace(mdp.actions())
+        # Espacios factorizados (nueva arquitectura)
+        self._schema = mdp.state_schema
+        self._state_space = StateSpace(self._schema)
+        self._action_space = ActionSpace(mdp.actions())
+        self._state_factors = self._schema.get_factors_at(0)  # términos t=0 para construir estado nuevo
 
     def run(self, trials, horizon, start_state, gamma=0.9):
         """
@@ -86,13 +88,14 @@ class Simulator(object):
         for step in range(horizon):
             action = self.__select_action(state)
             reward = self.__collect_reward(state, action)
-            state  = self.__sample_next_state(state, action)
+            state = self.__sample_next_state(state, action)
             total += discount * reward
             path.extend([action, state])
             discount *= gamma
         return total, path
 
-    def __select_action(self, state):
+    def __select_action(self, state_key):
+        """Política ya almacena el OrderedDict completo de la acción elegida."""
         """
         Return the action prescribed by its policy for the given `state`.
 
@@ -100,12 +103,9 @@ class Simulator(object):
         :type state: tuple of pairs (str, bool)
         :rtype: str
         """
-        a = self._policy[state]
-        for action in self.__actions:
-            if action[a] == 1:
-                return action
+        return self._policy[state_key]
 
-    def __collect_reward(self, state, action):
+    def __collect_reward(self, state_key, action_val):
         """
         Return the reward for applying `action` to `state`.
 
@@ -115,11 +115,17 @@ class Simulator(object):
         :type action: tuple of pairs (str, bool)
         :rtype: float
         """
-        state = StateSpace.state(state)
-        cache = (StateSpace.index(state), ActionSpace.index(action))
-        return self._mdp.reward(state, action, cache)
+        """Conversión mínima + caché por índice (exactamente como ValueIteration)."""
+        state_val = OrderedDict(state_key)
+        cache = (self._state_space.index(state_val),
+                 self._action_space.index(action_val))
+        return self._mdp.reward(state_val, action_val, cache)
 
-    def __sample_next_state(self, state, action):
+    def __sample_next_state(self, state_key, action_val):
+        """
+        Muestreo correcto usando structured_transition.
+        Soporta bool y multivalued (one-hot) sin asumir orden plano.
+        """
         """
         Return next state sampled from the transition distribution
         given by applying `action` to `state`.
@@ -130,11 +136,35 @@ class Simulator(object):
         :type action: tuple of pairs (str, bool)
         :rtype: state represented as a valuation over fluents
         """
-        valuation = []
-        state = StateSpace.state(state)
-        cache = (StateSpace.index(state), ActionSpace.index(action))
-        probabilities = self._mdp.transition(state, action, cache)
-        for (i, (term, probability)) in enumerate(probabilities):
-            value = int(random.random() <= probability)
-            valuation.append((self.__current_state_fluents[i], value))
-        return tuple(valuation)
+        state_val = OrderedDict(state_key)
+        cache = (self._state_space.index(state_val),
+                 self._action_space.index(action_val))
+
+        structured = self._mdp.structured_transition(state_val, action_val, cache)
+
+        new_valuation = OrderedDict()
+        for f_idx, group in enumerate(structured):
+            if not group:
+                # Caso degenerado (improbable)
+                for term in self._state_factors[f_idx]:
+                    new_valuation[term] = 0
+                continue
+
+            # Muestreo ponderado (random.choices normaliza automáticamente)
+            weights = [p for _, p in group]
+            chosen_idx = random.choices(range(len(group)), weights=weights)[0]
+            chosen_term_or_none = group[chosen_idx][0]
+
+            # Índice local dentro del factor (maneja None para bool)
+            local_idx = self._schema.get_local_index(f_idx, chosen_term_or_none)
+
+            factor_terms = self._state_factors[f_idx]
+            if len(factor_terms) == 1:
+                # Bool
+                new_valuation[factor_terms[0]] = local_idx
+            else:
+                # Multivalued → one-hot
+                for i, term in enumerate(factor_terms):
+                    new_valuation[term] = 1 if i == local_idx else 0
+
+        return tuple(new_valuation.items())

@@ -61,7 +61,6 @@ class Engine(object):
         :return: Mapping from assigned term to its value.
         :rtype: dict[problog.logic.Term, problog.logic.Constant]
         """
-        print("CLAVE VALOR: ", dict(self._engine.query(self._db, Term(assignment_type, None, None))))
         return dict(self._engine.query(self._db, Term(assignment_type, None, None)))
 
     def get_instructions_table(self):
