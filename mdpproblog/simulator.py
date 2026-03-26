@@ -26,18 +26,17 @@ class Simulator(object):
     :param mdp: an MDP formulation
     :type mdp: mdpproblog.mdp.MDP object
     :param policy: mapping from state to action
-    :type policy: dict of (tuple, str)
+    :type policy: dict of (tuple, OrderedDict)
     """
 
     def __init__(self, mdp, policy):
         self._mdp = mdp
         self._policy = policy
 
-        # Espacios factorizados (nueva arquitectura)
         self._schema = mdp.state_schema
         self._state_space = StateSpace(self._schema)
         self._action_space = ActionSpace(mdp.actions())
-        self._state_factors = self._schema.get_factors_at(0)  # términos t=0 para construir estado nuevo
+        self._current_state_factors = self._schema.get_factors_at(0) 
 
     def run(self, trials, horizon, start_state, gamma=0.9):
         """
@@ -46,7 +45,7 @@ class Simulator(object):
         `gamma` as discount factor. Return average reward over all trials,
         a list of rewards received at each trial and list of sampled states
         for each trial.
-
+ 
         :param trials: number of trials
         :type trials: int
         :param horizon: number of timesteps
@@ -54,7 +53,7 @@ class Simulator(object):
         :param start_state: state from which the simulation starts
         :param gamma: discount factor
         :type gamma: float
-        :rtype: tuple (float, list of list of floats, list of list of states)
+        :rtype: tuple (float, list of floats, list of list)
         """
         rewards = []
         paths = []
@@ -71,100 +70,86 @@ class Simulator(object):
         following its policy. Compute the discounted expected reward using
         `gamma` as discount factor. Return total discounted reward over all
         steps of the horizon and a list of sampled states in the trial.
-
-        :param trials: number of trials
-        :type trials: int
+ 
         :param horizon: number of timesteps
         :type horizon: int
         :param start_state: state from which the simulation starts
         :param gamma: discount factor
         :type gamma: float
-        :rtype: tuple (float, list of states)
+        :rtype: tuple (float, list)
         """
         state = start_state
         discount = 1.0
         total = 0.0
         path = [start_state]
         for step in range(horizon):
-            action = self.__select_action(state)
-            reward = self.__collect_reward(state, action)
-            state = self.__sample_next_state(state, action)
+            action_val = self.__select_action(state)
+ 
+            state_val = OrderedDict(state)
+            cache = (self._state_space.index(state_val),
+                     self._action_space.index(action_val))
+ 
+            reward = self.__collect_reward(state_val, action_val, cache)
+            state = self.__sample_next_state(state_val, action_val, cache)
+ 
             total += discount * reward
-            path.extend([action, state])
+            path.extend([action_val, state])
             discount *= gamma
         return total, path
 
-    def __select_action(self, state_key):
-        """Política ya almacena el OrderedDict completo de la acción elegida."""
+    def __select_action(self, state):
         """
-        Return the action prescribed by its policy for the given `state`.
-
-        :param state: state represented as a valuation over fluents
-        :type state: tuple of pairs (str, bool)
-        :rtype: str
+        Return the action prescribed by the policy for the given `state`.
+ 
+        :param state: state represented as a tuple of (Term, int) pairs
+        :rtype: OrderedDict
         """
-        return self._policy[state_key]
+        return self._policy[state]
 
-    def __collect_reward(self, state_key, action_val):
+    def __collect_reward(self, state_val, action_val, cache):
         """
-        Return the reward for applying `action` to `state`.
-
-        :param state: state represented as a valuation over fluents
-        :type state: tuple of pairs (str, bool)
-        :param action: action represented as a valuation over fluents
-        :type action: tuple of pairs (str, bool)
+        Return the reward for applying `action_val` in `state_val`.
+ 
+        :param state_val: state as OrderedDict evidence mapping
+        :param action_val: action as one-hot OrderedDict evidence mapping
+        :param cache: (state_index, action_index) for memoisation
         :rtype: float
         """
-        """Conversión mínima + caché por índice (exactamente como ValueIteration)."""
-        state_val = OrderedDict(state_key)
-        cache = (self._state_space.index(state_val),
-                 self._action_space.index(action_val))
         return self._mdp.reward(state_val, action_val, cache)
 
-    def __sample_next_state(self, state_key, action_val):
+    def __sample_next_state(self, state_val, action_val, cache):
         """
-        Muestreo correcto usando structured_transition.
-        Soporta bool y multivalued (one-hot) sin asumir orden plano.
+        Return next state sampled from the factored transition distribution
+        given by applying `action_val` to `state_val`.
+        Performs weighted categorical sampling per schema factor,
+        handling both boolean and multivalued fluents.
+ 
+        :param state_val: state as OrderedDict evidence mapping
+        :param action_val: action as one-hot OrderedDict evidence mapping
+        :param cache: (state_index, action_index) for memoisation
+        :rtype: tuple of (Term, int) pairs
         """
-        """
-        Return next state sampled from the transition distribution
-        given by applying `action` to `state`.
-
-        :param state: state represented as a valuation over fluents
-        :type state: tuple of pairs (str, bool)
-        :param action: action represented as a valuation over fluents
-        :type action: tuple of pairs (str, bool)
-        :rtype: state represented as a valuation over fluents
-        """
-        state_val = OrderedDict(state_key)
-        cache = (self._state_space.index(state_val),
-                 self._action_space.index(action_val))
-
         structured = self._mdp.structured_transition(state_val, action_val, cache)
-
         new_valuation = OrderedDict()
+ 
         for f_idx, group in enumerate(structured):
+            factor_terms = self._current_state_factors[f_idx]
+ 
             if not group:
-                # Caso degenerado (improbable)
-                for term in self._state_factors[f_idx]:
+                for term in factor_terms:
                     new_valuation[term] = 0
                 continue
-
-            # Muestreo ponderado (random.choices normaliza automáticamente)
-            weights = [p for _, p in group]
+ 
+            weights = [prob for _, prob in group]
             chosen_idx = random.choices(range(len(group)), weights=weights)[0]
-            chosen_term_or_none = group[chosen_idx][0]
-
-            # Índice local dentro del factor (maneja None para bool)
-            local_idx = self._schema.get_local_index(f_idx, chosen_term_or_none)
-
-            factor_terms = self._state_factors[f_idx]
+            chosen_term = group[chosen_idx][0]
+ 
+            local_idx = self._schema.get_local_index(f_idx, chosen_term)
+ 
             if len(factor_terms) == 1:
-                # Bool
                 new_valuation[factor_terms[0]] = local_idx
             else:
-                # Multivalued → one-hot
                 for i, term in enumerate(factor_terms):
                     new_valuation[term] = 1 if i == local_idx else 0
-
+ 
         return tuple(new_valuation.items())

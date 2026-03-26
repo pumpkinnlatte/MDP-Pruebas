@@ -18,7 +18,7 @@ setup(
     license='GNU General Public License v3.0',
     keywords=['planning', 'mdp', 'problog', 'probabilistic logic programming'],
     url='https://github.com/thiagopbueno/mdp-problog',
-    packages=['mdpproblog'],
+    packages=['mdpproblog', 'tests'],
     scripts=['bin/mdp-problog'],
     install_requires=['problog'],
     include_package_data=True,

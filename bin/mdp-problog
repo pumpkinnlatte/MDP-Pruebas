@@ -68,6 +68,7 @@ def parse():
     parser.add_argument("-e", "--epsilon", type=float, default=0.1, help="maximum error      (default=0.1)")
     parser.add_argument("-t", "--trials",  type=int,   default=100, help="number of trials   (default=100)")
     parser.add_argument("-z", "--horizon", type=int,   default=50,  help="simulation horizon (default=50)")
+    parser.add_argument("-b", "--backend", type=str, default=None, help="ProbLog compilation backend preference(default=None)")
     return parser.parse_args()
 
 
@@ -107,11 +108,11 @@ def print_solution(V, policy, iterations, uptime):
     print()
     for state, action in policy.items():
         state = ', '.join(["{f}={v}".format(f=f, v=v) for f, v in state])
-        print("Policy({state}) = {action}".format(state=state, action=action))
+        action_name = next(term for term, val in action.items() if val == 1)
+        print("Policy({state}) = {action}".format(state=state, action=action_name))
     print()
     print(">> Value iteration converged in {0:.3f}sec after {1} iterations.".format(uptime, iterations))
     print(">> Average time per iteration = {0:.3f}sec.".format(uptime / iterations))
-
 
 if __name__ == '__main__':
     args = parse()
@@ -135,7 +136,7 @@ if __name__ == '__main__':
     if args.command in ['solve', 'simulate']:
         domain, instance = load_model(domain, instance)
         model = domain + instance
-        mdp = MDP(model)
+        mdp = MDP(model, backend=args.backend)
         start = time.perf_counter()
         V, policy, iterations = solve_model(mdp, args.gamma, args.epsilon)
         end = time.perf_counter()
@@ -145,12 +146,10 @@ if __name__ == '__main__':
 
         if args.command == 'simulate':
             simulator = Simulator(mdp, policy)
-            states = StateSpace(mdp.state_schema)          # ← FIX P4
+            states  = StateSpace(mdp.state_schema)
             print()
             for i, state_val in enumerate(states):
-                start_state = tuple(state_val.items())     # ← convención tuple(items)
-                avg, _, _ = simulator.run(
-                    args.trials, args.horizon, start_state, args.gamma
-                )
+                start_state = tuple(state_val.items())    
+                avg, _, _ = simulator.run(args.trials, args.horizon, start_state, args.gamma)
                 label = ', '.join(f"{f}={v}" for f, v in state_val.items())
                 print("Expectation({state}) = {value:.3f}".format(state=label, value=avg))
