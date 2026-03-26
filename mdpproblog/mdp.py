@@ -13,9 +13,14 @@
 # You should have received a copy of the GNU General Public License
 # along with MDP-ProbLog.  If not, see <http://www.gnu.org/licenses/>.
 
+import logging
 import mdpproblog.engine as eng
 from mdpproblog.fluent import Fluent, FluentSchema, StateSpace, ActionSpace
 from mdpproblog.fluent import FluentClassifier
+from mdpproblog.verbosity import VerbosityConfig, VerbosityLevel, setup_verbosity
+
+_logger = logging.getLogger(__name__)
+
 class MDP(object):
     """
     Representation of an MDP and its components. Implemented as a bridge
@@ -30,14 +35,16 @@ class MDP(object):
     :type backend: str or None
     """
 
-    def __init__(self, model, epsilon_thr=1e-6, backend=None):
+    def __init__(self, model, epsilon_thr=1e-6, backend=None, verbosity=None):
         self._model = model
         self.epsilon_thr = epsilon_thr
-
         self._engine = eng.Engine(model, backend=backend)
-
         self.__transition_cache = {}
         self.__reward_cache = {}
+
+        self._verbosity = verbosity if verbosity is not None else VerbosityConfig()
+        if self._verbosity.level > VerbosityLevel.SILENT:
+            setup_verbosity(self._verbosity)
 
         self.__prepare()
 
@@ -47,6 +54,10 @@ class MDP(object):
         # classify fluents and build schema
         classifier = FluentClassifier(self._engine)
         self.state_schema = classifier.classify()
+
+        if self._verbosity.level >= VerbosityLevel.SCHEMA:
+            _logger.info("State Schema initialized successfully.")
+            _logger.info("\n" + str(self.state_schema))
 
         # templates for next-state factors (t = 1) used by structured_transition
         self._next_state_factors = self.state_schema.get_factors_at(1)
