@@ -21,8 +21,10 @@ import sys
 import time
 
 import mdpproblog
+from mdpproblog.verbosity import VerbosityConfig, VerbosityLevel, setup_verbosity
 from mdpproblog.mdp import MDP
 from mdpproblog.value_iteration import ValueIteration
+from mdpproblog.reporting.csv_exporter import CSVExporter
 from mdpproblog.simulator import Simulator
 from mdpproblog.fluent import StateSpace
 
@@ -69,8 +71,9 @@ def parse():
     parser.add_argument("-t", "--trials",  type=int,   default=100, help="number of trials   (default=100)")
     parser.add_argument("-z", "--horizon", type=int,   default=50,  help="simulation horizon (default=50)")
     parser.add_argument("-b", "--backend", type=str, default=None, help="ProbLog compilation backend preference(default=None)")
+    parser.add_argument("-v", "--verbosity", type=str.lower, choices=['0', '1', '2', 'silent', 'schema', 'trace'], default=0, help="Observability level: 0/silent (no logs), 1/schema (summary), 2/trace (step-by-step).")
+    parser.add_argument('-o', '--output',type=str,default=None,help="Target directory for CSV results export. Default: 'output'.")
     return parser.parse_args()
-
 
 def load_model(domain, instance):
     with open(domain, 'r') as domain:
@@ -79,6 +82,19 @@ def load_model(domain, instance):
         instance_model = instance.read()
     return domain_model, instance_model
 
+def resolve_verbosity(val):
+    """
+    Maps the validated verbosity argument to a VerbosityLevel enum.
+    """
+    mapping = {
+        '0': VerbosityLevel.SILENT,
+        'silent': VerbosityLevel.SILENT,
+        '1': VerbosityLevel.SCHEMA,
+        'schema': VerbosityLevel.SCHEMA,
+        '2': VerbosityLevel.TRACE,
+        'trace': VerbosityLevel.TRACE
+    }
+    return mapping[str(val).lower()]
 
 def print_list_examples():
     examples = ', '.join(sorted(MODELS.keys()))
@@ -95,24 +111,24 @@ def show_model(domain, instance):
     print()
 
 
-def solve_model(mdp, gamma, epsilon):
+def solve_model(mdp, gamma, epsilon, verbosity = None, track_history=False, compute_q=False):
     vi = ValueIteration(mdp)
-    return vi.run(gamma, epsilon)
+    return vi.run(gamma, epsilon, track_history=track_history, compute_q=compute_q, verbosity=verbosity)
 
 
-def print_solution(V, policy, iterations, uptime):
+def print_solution(vi_result, uptime):
     print()
-    for state, value in V.items():
-        state = ', '.join(["{f}={v}".format(f=f, v=v) for f, v in state])
-        print("Value({state}) = {value:.3f}".format(state=state, value=value))
+    for state_tuple, value in vi_result.V.items():
+        state_str = ', '.join(["{f}={v}".format(f=f, v=v) for f, v in state_tuple])
+        print("Value({state}) = {value:.3f}".format(state=state_str, value=value))
     print()
-    for state, action in policy.items():
-        state = ', '.join(["{f}={v}".format(f=f, v=v) for f, v in state])
-        action_name = next(term for term, val in action.items() if val == 1)
-        print("Policy({state}) = {action}".format(state=state, action=action_name))
+    for state_tuple, action_tuple in vi_result.policy.items():
+        state_str = ', '.join(["{f}={v}".format(f=f, v=v) for f, v in state_tuple])
+        action_name = next(term for term, val in action_tuple.items() if val == 1)
+        print("Policy({state}) = {action}".format(state=state_str, action=action_name))
     print()
-    print(">> Value iteration converged in {0:.3f}sec after {1} iterations.".format(uptime, iterations))
-    print(">> Average time per iteration = {0:.3f}sec.".format(uptime / iterations))
+    print(">> Value iteration converged in {0:.3f}sec after {1} iterations.".format(uptime, vi_result.iterations))
+    print(">> Average time per iteration = {0:.3f}sec.".format(uptime / vi_result.iterations))
 
 if __name__ == '__main__':
     args = parse()
@@ -136,16 +152,29 @@ if __name__ == '__main__':
     if args.command in ['solve', 'simulate']:
         domain, instance = load_model(domain, instance)
         model = domain + instance
-        mdp = MDP(model, backend=args.backend)
+
+        v_level = resolve_verbosity(args.verbosity)
+        verbosity = VerbosityConfig(v_level)
+        setup_verbosity(verbosity)
+        
+        mdp = MDP(model, backend=args.backend, verbosity=verbosity)
+
         start = time.perf_counter()
-        V, policy, iterations = solve_model(mdp, args.gamma, args.epsilon)
+        export_requested = args.output is not None
+        vi_result = solve_model(mdp, args.gamma, args.epsilon, verbosity=verbosity,  track_history=export_requested, compute_q=export_requested)
         end = time.perf_counter()
         uptime = end - start
 
-        print_solution(V, policy, iterations, uptime)
+        print_solution(vi_result, uptime)
+
+        if export_requested:
+            exporter = CSVExporter(mdp, output_dir=args.output)
+            exporter.export_all(vi_result)
+            if verbosity.level != VerbosityLevel.SILENT:
+                print(f">> Results exported successfully to '{args.output}/'")
 
         if args.command == 'simulate':
-            simulator = Simulator(mdp, policy)
+            simulator = Simulator(mdp, vi_result.policy)
             states  = StateSpace(mdp.state_schema)
             print()
             for i, state_val in enumerate(states):

@@ -24,10 +24,9 @@ class Engine(object):
     Adapter class to Problog grounding and query engine.
 
     The adapter stores three representations of the program:
-
-        * ``self._db``: ClauseDB prepared from the input program
-        * ``self._gp``: ground program 
-        * ``self._knowledge``: compiled knowledge base
+        `self._db`: ClauseDB prepared from the input program
+        `self._gp`: ground program 
+        `self._knowledge`: compiled knowledge base
 
     :param program: a valid MDP-ProbLog program
     :type program: str
@@ -41,6 +40,18 @@ class Engine(object):
         self._gp = None
         self._backend = backend
         self._knowledge = None
+
+    @property
+    def node_count(self):
+        """
+        Return the current number of nodes in the ClauseDB.
+        
+        This is used by trace.py to report size before/after injection.
+        Read-only property.
+        
+        :rtype: int
+        """
+        return len(self._db._ClauseDB__nodes)
 
     def declarations(self, declaration_type):
         """
@@ -201,7 +212,7 @@ class Engine(object):
 
     def get_annotated_disjunction(self, nodes):
         """
-        Return the ProbLog ``choice`` nodes referenced by ``nodes``.
+        Return the ProbLog `choice` nodes referenced by `nodes`.
 
         :param nodes: ClauseDB node ids.
         :type nodes: list of int

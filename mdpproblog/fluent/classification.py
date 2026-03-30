@@ -51,6 +51,8 @@ class FluentClassifier(object):
         mv_acc = self._separte_mv_fluents(full_registry, schema)
         self._validate_multivalued(schema, mv_acc)
 
+        self._last_registry = full_registry
+
         return schema
 
     def _register_explicit(self, explicit_fluents):

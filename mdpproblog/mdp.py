@@ -14,6 +14,7 @@
 # along with MDP-ProbLog.  If not, see <http://www.gnu.org/licenses/>.
 
 import logging
+import time
 import mdpproblog.engine as eng
 from mdpproblog.fluent import Fluent, FluentSchema, StateSpace, ActionSpace
 from mdpproblog.fluent import FluentClassifier
@@ -38,27 +39,69 @@ class MDP(object):
     def __init__(self, model, epsilon_thr=1e-6, backend=None, verbosity=None):
         self._model = model
         self.epsilon_thr = epsilon_thr
+        self._verbosity = verbosity if verbosity is not None else VerbosityConfig()
+
+        t0 = time.perf_counter()
         self._engine = eng.Engine(model, backend=backend)
+        elapsed = time.perf_counter() - t0
+
+        # ← Nueva llamada para probar trace_parsing
+        if self._verbosity.level >= VerbosityLevel.TRACE:
+            from mdpproblog.trace import trace_parsing
+            trace_parsing(self._engine, elapsed)
+
         self.__transition_cache = {}
         self.__reward_cache = {}
-
-        self._verbosity = verbosity if verbosity is not None else VerbosityConfig()
-        if self._verbosity.level > VerbosityLevel.SILENT:
-            setup_verbosity(self._verbosity)
-
         self.__prepare()
 
     def __prepare(self):
-        """ Prepare the mdp-problog knowledge database to accept queries. """
+        """Orquestador principal de preparación."""
+        if self._verbosity.level >= VerbosityLevel.SCHEMA:
+            self.__prepare_traced()
+        else:
+            self.__prepare_silent()
 
-        # classify fluents and build schema
-        classifier = FluentClassifier(self._engine)
-        self.state_schema = classifier.classify()
+    def __prepare_silent(self):
+        """Flujo de preparación normal sin ningún tracing."""
+        self.state_schema = self._classify_fluents()
+
+        self._inject_dummy_facts()
+        self._ground_relevant_queries()
+        self._compile_queries()
+
+    def __prepare_traced(self):
+        from mdpproblog.trace import trace_classification, trace_injection, trace_grounding, trace_compilation
+
+        self.state_schema = trace_classification(self._engine)  #classify fluents
 
         if self._verbosity.level >= VerbosityLevel.SCHEMA:
             _logger.info("State Schema initialized successfully.")
             _logger.info("\n" + str(self.state_schema))
 
+        trace_injection(self)   #inject dummy facts
+
+        queries = self._build_relevant_queries() 
+        trace_grounding(self._engine, queries)    #ground queries
+
+        trace_compilation(self)   # compile queries
+
+
+    @property
+    def transition_cache_size(self):
+        """Número de transiciones cacheadas."""
+        return len(self.__transition_cache)
+
+    @property
+    def reward_cache_size(self):
+        """Número de recompensas cacheadas."""
+        return len(self.__reward_cache)
+
+    # build MDP       
+    def _classify_fluents(self):
+        classifier = FluentClassifier(self._engine)
+        return classifier.classify()
+
+    def _inject_dummy_facts(self):
         # templates for next-state factors (t = 1) used by structured_transition
         self._next_state_factors = self.state_schema.get_factors_at(1)
 
@@ -69,7 +112,7 @@ class MDP(object):
                     fluent_term = Fluent.create_fluent(term, 0)
                     self._engine.add_fact(fluent_term, 0.5)
             else:
-                current_fluents =[]
+                current_fluents =[  ]
                 for term in factor: 
                     current_fluents.append(Fluent.create_fluent(term, 0)) #t = 0
                 self._engine.add_annotated_disjunction(current_fluents, [1.0 / len(current_fluents)] * len(current_fluents))
@@ -81,15 +124,33 @@ class MDP(object):
         # utility assignments are used to compute expected immediate rewards. 
         self.__utilities = self._engine.assignments('utility')
 
+    def _build_relevant_queries(self):
         # ground only what is relevant to rewards, transitions and evidence.
         current_state_fluents = self.current_state_fluents()
         next_state_fluents = self.next_state_fluents()
+        actions = self.actions()
+
         queries = list(set(self.__utilities) | set(next_state_fluents) | set(actions) | set(current_state_fluents))
+        return queries
+    
+    def _ground_relevant_queries(self):
+        """Realiza el grounding relevante."""
+        queries = self._build_relevant_queries()
         self._engine.relevant_ground(queries)
 
-        # compile query database
-        self.__next_state_queries = self._engine.compile(next_state_fluents)
-        self.__reward_queries = self._engine.compile(self.__utilities)
+    def _compile_queries(self):
+        """Compila las queries y retorna los mapas (para que trace_compilation pueda loguear)."""
+        next_state_fluents = self.next_state_fluents()
+        
+        next_map = self._engine.compile(next_state_fluents)
+        reward_map = self._engine.compile(self.__utilities)
+
+        self.__next_state_queries = next_map
+        self.__reward_queries = reward_map
+
+        return next_map, reward_map
+
+    # Class methods
 
     def state_fluents(self):
         """
@@ -136,7 +197,7 @@ class MDP(object):
         Behavior per factor:
 
             * Boolean factor (single term): injects the implicit false branch
-              (represented as ``None``) with probability ``1 - p_true``.
+              (represented as `None`) with probability `1 - p_true`.
             * Multi-valued factor (AD group): returns only terms with probability
               greater than :attr:`epsilon_thr` (sparse filter).
 
@@ -184,7 +245,7 @@ class MDP(object):
         """
         Return probabilities for all next-state fluents given `state` and `action.
 
-        If ``cache`` is provided, results are memoized and subsequent calls with
+        If `cache` is provided, results are memoized and subsequent calls with
         the same cache key will not re-evaluate the ProbLog circuit.
 
         :param state: state vector representation of current state fluents
@@ -242,7 +303,7 @@ class MDP(object):
         """
         Return the expected immediate reward for executing an action in a state.
 
-        If ``cache`` is provided, results are memoized and subsequent calls with
+        If `cache` is provided, results are memoized and subsequent calls with
         the same cache key will not re-evaluate the ProbLog circuit.
 
         :param state: Evidence assignment for current-state fluents (t = 0).

@@ -14,6 +14,7 @@
 # along with MDP-ProbLog.  If not, see <http://www.gnu.org/licenses/>.
 
 import sys
+import time
 import logging
 
 from mdpproblog.fluent import StateSpace, ActionSpace
@@ -23,13 +24,14 @@ _logger = logging.getLogger(__name__)
 
 class VIResult(tuple):
     """
-    Data structure for Value Iteration results.
-    Behaves as a 3-element tuple (V, policy, iterations) for backward compatibility,
-    while exposing 5 named attributes for extended diagnostics.
+    Result container for Value Iteration.
+
+    Inherits from tuple to support positional unpacking three fields (V, policy, iterations).
+    Extended fields (Q, history) are accessible only by name
     """
     def __new__(cls, V, policy, iterations, Q=None, history=None):
         return super(VIResult, cls).__new__(cls, (V, policy, iterations))
-    
+
     def __init__(self, V, policy, iterations, Q=None, history=None):
         self.V = V
         self.policy = policy
@@ -77,11 +79,19 @@ class ValueIteration(object):
 
         threshold = 2 * epsilon * (1 - gamma) / gamma
 
+        traced = verbosity is not None and verbosity.level >= VerbosityLevel.TRACE 
+
+        if traced:
+            from mdpproblog.trace import trace_vi_iteration, trace_vi_summary
+
         iteration = 0
         while True:
             iteration += 1
-            max_residual = -sys.maxsize
 
+            if traced:
+                t0 = time.perf_counter() 
+
+            max_residual = -sys.maxsize
             Q_current = {} if compute_q else None # only if required
 
             for (i, state) in enumerate(states):
@@ -105,33 +115,48 @@ class ValueIteration(object):
                 V[i] = max_value
                 policy[i] = greedy_action
 
+            if traced:
+                elapsed = time.perf_counter() - t0
+                trace_vi_iteration(iteration, max_residual, elapsed)
+
+            if track_history:
+                history_log.append(dict(V))
+
             if max_residual <= threshold:
-                if track_history:
-                    history_log.append(dict(V))
-                    
-                # Hook SCHEMA: Cero impacto, ejecutado una sola vez tras converger
-                if verbosity is not None and verbosity.level >= VerbosityLevel.SCHEMA:
-                    _logger.info(
-                        "Converged in %d iterations (residual=%.6f, threshold=%.6f)", 
-                        iteration, max_residual, threshold
-                    )
                 break
+
+        # === Resumen final ===
+        if traced:
+            transition_hits = self._mdp.transition_cache_size
+            reward_hits = self._mdp.reward_cache_size
+            total_pairs = len(states) * len(actions)
+
+            trace_vi_summary(
+                iterations=iteration,
+                residual=max_residual,
+                threshold=threshold,
+                transition_hits=transition_hits,
+                reward_hits=reward_hits,
+                total_pairs=total_pairs
+            )
 
         return self.__format_results(V, policy, iteration, Q_current, history_log, states, actions)
 
     def __expected_value(self, transition_groups, strides, V, k=0, current_index=0, joint=1.0):
         """
-        Compute the expected future value for a probabilistic transition.
+        Compute the expected future value by recursing over the factored transition tree.
 
-        :param transition_groups: List of factors, where each factor is a list of ``(term, prob)`` pairs.
-        :type transition_groups: listVIResult(V_final, policy_final, iteration, Q=Q_final, history=history_final)
-        :param V: Current value function mapping integer state index to value.
-        :type V: dict
-        :param k: Recursion depth (index of the current factor being processed).
+        :param transition_groups: factored transition, one list of (term, prob) pairs per factor
+        :type transition_groups: list[list[tuple]]
+        :param strides: positional strides from the fluent schema
+        :type strides: list[int]
+        :param V: current value function mapping state index to value
+        :type V: dict[int, float]
+        :param k: current recursion depth (factor index)
         :type k: int
-        :param index: Accumulated integer state index for the current branch.
-        :type index: int
-        :param joint: Accumulated joint probability of the current branch.
+        :param current_index: accumulated mixed-radix state index
+        :type current_index: int
+        :param joint: accumulated joint probability of the current branch
         :type joint: float
         :rtype: float
         """
