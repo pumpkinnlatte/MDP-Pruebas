@@ -212,7 +212,7 @@ class MDP(object):
         :rtype: list[list[tuple[problog.logic.Term | None, float]]]
         """
         flat_transitions = self.transition(state, action, cache)
-        prob_map = {str(term): prob for term, prob in flat_transitions}
+        prob_map = dict(flat_transitions)
         
         structured_result = []
         
@@ -222,7 +222,7 @@ class MDP(object):
            # Boolean factor: 1 term -> {false, true}
             if len(factor_template) == 1:
                 term = factor_template[0]
-                p_true = prob_map.get(str(term), 0.0)
+                p_true = prob_map[term]
                 p_false = 1.0 - p_true
                 
                 if p_false > self.epsilon_thr:
@@ -233,7 +233,7 @@ class MDP(object):
             # Multi-valued factor (ADS group): keep only non-negligible branches
             else:
                 for term in factor_template:
-                    p = prob_map.get(str(term), 0.0)
+                    p = prob_map[term]
                     if p > self.epsilon_thr:
                         group_data.append((term, p))
                         
